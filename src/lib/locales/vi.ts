@@ -531,7 +531,7 @@ const vi = {
   selectConnectionFirst: "Chọn kết nối để tiếp tục",
   postgresOnlyWarning:
     "Tính năng sao lưu hiện tại chỉ hỗ trợ các kết nối PostgreSQL thông qua pg_dump.",
-  restoringYourWorkspace: "Đang khôi phục không gian làm việc của bạn..."
+  restoringYourWorkspace: "Đang khôi phục không gian làm việc của bạn...",
 };
 
 export default vi;

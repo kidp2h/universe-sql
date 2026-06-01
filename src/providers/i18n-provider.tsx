@@ -4,7 +4,9 @@ import * as React from "react";
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 
 function getStoredLanguage(): string {
-  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as typeof SUPPORTED_LANGUAGES[number];
+  const stored = localStorage.getItem(
+    LANGUAGE_STORAGE_KEY,
+  ) as (typeof SUPPORTED_LANGUAGES)[number];
   if (stored && SUPPORTED_LANGUAGES.includes(stored)) {
     return stored;
   }

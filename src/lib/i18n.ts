@@ -5,12 +5,20 @@ import vi from "./locales/vi";
 import zh from "./locales/zh";
 import ja from "./locales/ja";
 import ko from "./locales/ko";
-import ru from "./locales/ru"
-import es from "./locales/es"
+import ru from "./locales/ru";
+import es from "./locales/es";
 
 export const LANGUAGE_STORAGE_KEY = "usql:language";
 
-export const SUPPORTED_LANGUAGES = ["en", "vi", "zh", "ja", "ko", "ru", "es"] as const;
+export const SUPPORTED_LANGUAGES = [
+  "en",
+  "vi",
+  "zh",
+  "ja",
+  "ko",
+  "ru",
+  "es",
+] as const;
 
 const resources = {
   en: {
@@ -29,11 +37,11 @@ const resources = {
     translation: ko,
   },
   ru: {
-    translation: ru
+    translation: ru,
   },
   es: {
-    translation: es
-  }
+    translation: es,
+  },
 };
 
 void i18n.use(initReactI18next).init({
