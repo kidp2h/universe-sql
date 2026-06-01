@@ -1,5 +1,5 @@
 {
-  "name": "usql",
+  "name": "universe-sql",
   "version": "1.0.0",
   "private": true,
   "main": "dist-electron/main.cjs",
@@ -16,7 +16,7 @@
     "build:electron": "bun build ./electron/main.cjs --outfile ./dist-electron/main.cjs --format cjs --target node --minify --external electron --external pg --external electron-log --external electron-updater --external node-sql-parser && bun build ./electron/preload.cjs --outfile ./dist-electron/preload.cjs --format cjs --target node --minify --external electron",
     "start": "next start",
     "dist": "rimraf dist out dist-electron && bun run build && bun run build:electron && bun run electron-builder",
-    "publish": "dotenv -e .env -- electron-builder --publish always",
+    "publish": "dotenv -e .env -- electron-builder --publish onTag",
     "release": "bun scripts/release.mjs",
     "lint": "biome check",
     "format": "biome format --write"
@@ -93,7 +93,7 @@
       {
         "provider": "github",
         "owner": "kidp2h",
-        "repo": "usql"
+        "repo": "universe-sql"
       }
     ],
     "files": [
