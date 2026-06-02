@@ -53,6 +53,7 @@ interface PlanNode {
 export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
   const [selectedNode, setSelectedNode] = React.useState<PlanNode | null>(null);
   const [zoom, setZoom] = React.useState(1);
+  const graphAreaRef = React.useRef<HTMLDivElement>(null);
 
   if (!plan) {
     return (
@@ -70,6 +71,29 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
   const isAnalyze = rootNode["Actual Total Time"] !== undefined;
 
   const treeRef = React.useRef<HTMLDivElement>(null);
+
+  // Handle Ctrl + Wheel zoom
+  React.useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+
+      e.preventDefault();
+
+      setZoom((prevZoom) => {
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        const newZoom = Math.max(0.6, Math.min(1.5, prevZoom + delta));
+        return newZoom;
+      });
+    };
+
+    const graphArea = graphAreaRef.current;
+    if (graphArea) {
+      graphArea.addEventListener("wheel", handleWheel, { passive: false });
+      return () => {
+        graphArea.removeEventListener("wheel", handleWheel);
+      };
+    }
+  }, []);
 
   const handleExportPNG = async () => {
     if (!treeRef.current) return;
@@ -424,7 +448,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
           onClick={handleZoomOut}
           disabled={zoom <= 0.6}
           className="p-1 rounded-full hover:bg-accent hover:text-accent-foreground text-muted-foreground disabled:opacity-40 transition-colors"
-          title="Zoom Out"
+          title="Zoom Out (Ctrl + Scroll)"
         >
           <ZoomOut className="size-4" />
         </button>
@@ -435,7 +459,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
           onClick={handleZoomIn}
           disabled={zoom >= 1.5}
           className="p-1 rounded-full hover:bg-accent hover:text-accent-foreground text-muted-foreground disabled:opacity-40 transition-colors"
-          title="Zoom In"
+          title="Zoom In (Ctrl + Scroll)"
         >
           <ZoomIn className="size-4" />
         </button>
@@ -478,7 +502,10 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
       </div>
 
       {/* Main Graph Area */}
-      <div className="flex-1 overflow-auto p-12 flex justify-center items-start min-w-0">
+      <div
+        ref={graphAreaRef}
+        className="flex-1 overflow-auto p-12 flex justify-center items-start min-w-0"
+      >
         <div
           ref={treeRef}
           className="transition-transform duration-200 ease-out origin-top flex flex-col items-center p-6 rounded-2xl"
