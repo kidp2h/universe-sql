@@ -53,7 +53,12 @@ interface PlanNode {
 export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
   const [selectedNode, setSelectedNode] = React.useState<PlanNode | null>(null);
   const [zoom, setZoom] = React.useState(1);
+  const [panX, setPanX] = React.useState(0);
+  const [panY, setPanY] = React.useState(0);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
   const graphAreaRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
 
   if (!plan) {
     return (
@@ -94,6 +99,42 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
       };
     }
   }, []);
+
+  // Handle drag to pan
+  React.useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      // Only pan with middle mouse button or Space key + left click
+      if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+        e.preventDefault();
+        setIsDragging(true);
+        setDragStart({ x: e.clientX - panX, y: e.clientY - panY });
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      setPanX(e.clientX - dragStart.x);
+      setPanY(e.clientY - dragStart.y);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const graphArea = graphAreaRef.current;
+    if (graphArea) {
+      graphArea.addEventListener("mousedown", handleMouseDown);
+      graphArea.addEventListener("mousemove", handleMouseMove, { passive: false });
+      document.addEventListener("mouseup", handleMouseUp);
+
+      return () => {
+        graphArea.removeEventListener("mousedown", handleMouseDown);
+        graphArea.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging, dragStart, panX, panY]);
 
   const handleExportPNG = async () => {
     if (!treeRef.current) return;
@@ -206,7 +247,11 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.1, 1.5));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.1, 0.6));
-  const handleResetZoom = () => setZoom(1);
+  const handleResetZoom = () => {
+    setZoom(1);
+    setPanX(0);
+    setPanY(0);
+  };
 
   // Helper to determine self cost of a node (Total Cost - Sum of Children's Total Cost)
   const calculateSelfCostAndType = (node: PlanNode) => {
@@ -467,7 +512,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
         <button
           onClick={handleResetZoom}
           className="p-1 rounded-full hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
-          title="Reset Zoom"
+          title="Reset Zoom & Pan"
         >
           <RotateCcw className="size-4" />
         </button>
@@ -501,17 +546,31 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
         </span>
       </div>
 
+      {/* Pan Hint */}
+      <div className="absolute bottom-4 left-4 z-10 text-[9px] bg-card/75 border border-border/80 py-1.5 px-3 rounded-full backdrop-blur-md text-muted-foreground font-mono">
+        <span className="flex items-center gap-1.5 font-semibold">
+          <span className="inline-block">Shift + Drag</span>
+          <span className="text-border/60">|</span>
+          <span className="inline-block">Middle Mouse</span>
+        </span>
+      </div>
+
       {/* Main Graph Area */}
       <div
         ref={graphAreaRef}
-        className="flex-1 overflow-auto p-12 flex justify-center items-start min-w-0"
+        className={cn(
+          "flex-1 overflow-auto p-12 flex justify-center items-start min-w-0",
+          isDragging ? "cursor-grabbing" : "cursor-grab",
+        )}
       >
         <div
-          ref={treeRef}
+          ref={contentRef}
           className="transition-transform duration-200 ease-out origin-top flex flex-col items-center p-6 rounded-2xl"
-          style={{ transform: `scale(${zoom})` }}
+          style={{
+            transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+          }}
         >
-          {renderPlanTree(rootNode)}
+          <div ref={treeRef}>{renderPlanTree(rootNode)}</div>
         </div>
       </div>
 
