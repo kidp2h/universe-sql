@@ -5,6 +5,7 @@ const {
   listPostgresColumns,
   listPostgresIndexes,
   listPostgresFullMetadata,
+  listPostgresSchemaMetadata,
   executePostgresQuery,
   validatePostgresSql,
 } = require("./postgres.cjs");
@@ -37,6 +38,10 @@ const fullMetadataHandlers = {
   postgres: listPostgresFullMetadata,
 };
 
+const schemaMetadataHandlers = {
+  postgres: listPostgresSchemaMetadata,
+};
+
 const validateSqlHandlers = {
   postgres: validatePostgresSql,
 };
@@ -49,5 +54,6 @@ module.exports = {
   indexHandlers,
   queryHandlers,
   fullMetadataHandlers,
+  schemaMetadataHandlers,
   validateSqlHandlers,
 };

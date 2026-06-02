@@ -48,6 +48,58 @@ export function QueryTabsBar() {
     null,
   );
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const [indicatorStyle, setIndicatorStyle] =
+    React.useState<React.CSSProperties>({
+      transform: "translateX(0)",
+      width: "0px",
+      opacity: 0,
+    });
+
+  // Calculate sliding indicator position and manage auto-scrolling
+  React.useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const updateIndicator = () => {
+      const activeElement = container.querySelector(
+        `[data-active="true"]`,
+      ) as HTMLElement | null;
+      if (activeElement) {
+        setIndicatorStyle({
+          transform: `translateX(${activeElement.offsetLeft}px)`,
+          width: `${activeElement.offsetWidth}px`,
+          opacity: 1,
+        });
+      } else {
+        setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
+      }
+    };
+
+    updateIndicator();
+
+    // Auto-scroll active tab into view
+    const activeElement = container.querySelector(
+      `[data-active="true"]`,
+    ) as HTMLElement | null;
+    if (activeElement) {
+      const containerLeft = container.scrollLeft;
+      const containerRight = containerLeft + container.clientWidth;
+      const elemLeft = activeElement.offsetLeft;
+      const elemRight = elemLeft + activeElement.offsetWidth;
+
+      if (elemLeft < containerLeft) {
+        container.scrollTo({ left: elemLeft - 16, behavior: "smooth" });
+      } else if (elemRight > containerRight) {
+        container.scrollTo({
+          left: elemRight - container.clientWidth + 16,
+          behavior: "smooth",
+        });
+      }
+    }
+
+    window.addEventListener("resize", updateIndicator);
+    return () => window.removeEventListener("resize", updateIndicator);
+  }, [activeTabId, tabs]);
 
   const [showUnsavedDialog, setShowUnsavedDialog] = React.useState(false);
   const [pendingCloseTabId, setPendingCloseTabId] = React.useState<
@@ -265,12 +317,23 @@ export function QueryTabsBar() {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="flex w-full min-w-0 max-w-full items-center gap-2 overflow-hidden border-b px-2 py-2">
+    <div className="flex w-full min-w-0 max-w-full items-center gap-2 overflow-hidden border-b border-border/40 bg-background/95 backdrop-blur px-3 py-1.5">
       <div
         ref={scrollRef}
         onWheel={handleWheel}
-        className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overscroll-x-contain scroll-smooth"
+        className="relative flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-1"
       >
+        {/* Sliding active tab indicator */}
+        <div
+          className="absolute bottom-1 top-1 rounded-md bg-muted/80 border border-border/40 shadow-sm pointer-events-none"
+          style={{
+            ...indicatorStyle,
+            transition:
+              "transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease",
+            zIndex: 0,
+          }}
+        />
+
         {tabs.map((tab, index) => {
           const isActive = tab.id === activeTabId;
           const isDragging = draggedTabIndex === index;
@@ -281,11 +344,12 @@ export function QueryTabsBar() {
             <ContextMenu key={tab.id}>
               <ContextMenuTrigger asChild>
                 <div
+                  data-active={isActive ? "true" : "false"}
                   className={
-                    "group flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm transition " +
+                    "group relative z-10 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors duration-200 select-none " +
                     (isActive
-                      ? "border-foreground/15 bg-muted text-foreground"
-                      : "border-transparent text-muted-foreground hover:bg-muted/60") +
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground") +
                     (isDragging ? " opacity-50" : "") +
                     (isDragOver ? " ring-2 ring-primary ring-offset-1" : "")
                   }
@@ -326,30 +390,28 @@ export function QueryTabsBar() {
                       setDraggedTabIndex(null);
                       setDragOverTabIndex(null);
                     }}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left cursor-pointer outline-none"
                   >
                     {renderTabIcon(tab.icon)}
                     {isDirty ? (
-                      <span className="text-amber-500" title="Unsaved">
-                        •
-                      </span>
+                      <span
+                        className="size-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"
+                        title="Unsaved"
+                      />
                     ) : null}
                     <span className="max-w-40 truncate">{tab.title}</span>
                   </button>
-                  <span className="flex items-center gap-1">
-                    <span className="h-4 w-px bg-border" />
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        requestCloseQuery(tab.id);
-                      }}
-                      className="rounded p-0.5 text-rose-500 hover:bg-rose-500/10 hover:text-rose-600"
-                      aria-label={`Close ${tab.title}`}
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </span>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      requestCloseQuery(tab.id);
+                    }}
+                    className="rounded-sm p-0.5 text-muted-foreground/40 hover:bg-rose-500/10 hover:text-rose-500 transition-colors shrink-0 cursor-pointer"
+                    aria-label={`Close ${tab.title}`}
+                  >
+                    <X className="size-3.5" />
+                  </button>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent>

@@ -11,6 +11,7 @@ import {
   Languages,
   Laptop,
   Type,
+  Cpu,
 } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useTheme } from "@/hooks/use-theme";
@@ -28,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { THEME_PRESETS } from "@/lib/themes";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 const fonts = [
   {
@@ -114,6 +116,40 @@ export function SettingsPanel() {
   const handleToggleDangerousCheck = (checked: boolean) => {
     setDangerousQueryCheck(checked);
     window.localStorage.setItem("usql:dangerous-query-check", String(checked));
+  };
+
+  const [disableGpu, setDisableGpu] = React.useState(false);
+
+  React.useEffect(() => {
+    const loadAppConfig = async () => {
+      if (window.electron?.getAppConfig) {
+        const res = await window.electron.getAppConfig();
+        if (res.ok && res.config) {
+          setDisableGpu(!!res.config.disableGpu);
+        }
+      }
+    };
+    void loadAppConfig();
+  }, []);
+
+  const handleToggleGpu = async (checked: boolean) => {
+    setDisableGpu(checked);
+    if (window.electron?.getAppConfig && window.electron?.saveAppConfig) {
+      try {
+        const res = await window.electron.getAppConfig();
+        const currentConfig = res.ok && res.config ? res.config : {};
+        const newConfig = { ...currentConfig, disableGpu: checked };
+        const saveRes = await window.electron.saveAppConfig(newConfig);
+        if (saveRes.ok) {
+          toast.info(t("gpuSettingsRestartToast"));
+        } else {
+          toast.error(saveRes.message || "Failed to save configuration");
+        }
+      } catch (err) {
+        console.error("Failed to save GPU config:", err);
+        toast.error("Failed to save configuration");
+      }
+    }
   };
 
   return (
@@ -574,6 +610,39 @@ export function SettingsPanel() {
               </label>
               <p className="text-sm text-muted-foreground leading-normal">
                 {t("querySafetyDesc")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-border/60" />
+
+        {/* ===== SYSTEM SECTION ===== */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 select-none">
+            <Cpu className="size-3.5 text-ring" />
+            <span className="text-sm font-bold uppercase tracking-wider text-foreground">
+              {t("systemPerformance")}
+            </span>
+          </div>
+
+          <div className="flex items-start gap-2.5 rounded-lg border p-3 bg-muted/10 select-none">
+            <Checkbox
+              id="disable-gpu-check"
+              checked={disableGpu}
+              onCheckedChange={(checked) => handleToggleGpu(!!checked)}
+              className="mt-0.5"
+            />
+            <div className="grid gap-1 leading-none cursor-pointer">
+              <label
+                htmlFor="disable-gpu-check"
+                className="text-sm font-semibold text-foreground select-none cursor-pointer flex items-center gap-1"
+              >
+                {t("disableGpuLabel")}
+              </label>
+              <p className="text-sm text-muted-foreground leading-normal">
+                {t("disableGpuDesc")}
               </p>
             </div>
           </div>

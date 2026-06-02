@@ -31,6 +31,7 @@ import { VisualQueryPlan } from "@/components/query/visual-query-plan";
 import { QueryPerformanceProfiler } from "@/components/query/profiler";
 import { cn } from "@/lib/utils";
 import { useTabStore } from "@/stores/tab-store";
+import { useSidebarStore } from "@/stores/sidebar-store";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   useQueryResultsStore,
@@ -662,6 +663,39 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
   const activeQueryTabIdRaw = useTabStore((state) => state.activeQueryTabId);
   const activeQueryTabId = React.useDeferredValue(activeQueryTabIdRaw);
 
+  const queryTabs = useTabStore((state) => state.queryTabs);
+  const selectedConnectionId = useSidebarStore(
+    (state) => state.selectedConnectionId,
+  );
+
+  const [isPending, setIsPending] = React.useState(false);
+
+  const prevActiveTabIdRef = React.useRef(activeQueryTabIdRaw);
+  const prevConnectionIdRef = React.useRef<string | null>(null);
+
+  const activeTab = queryTabs.find((t) => t.id === activeQueryTabIdRaw);
+  const activeConnectionId =
+    activeTab?.connectionId || selectedConnectionId || null;
+
+  React.useEffect(() => {
+    const prevTabId = prevActiveTabIdRef.current;
+    const prevConnectionId = prevConnectionIdRef.current;
+
+    prevActiveTabIdRef.current = activeQueryTabIdRaw;
+    prevConnectionIdRef.current = activeConnectionId;
+
+    if (activeQueryTabIdRaw !== prevTabId) {
+      if (prevConnectionId && activeConnectionId !== prevConnectionId) {
+        setIsPending(true);
+        const timer = setTimeout(() => {
+          setIsPending(false);
+        }, 120);
+        return () => clearTimeout(timer);
+      }
+      setIsPending(false);
+    }
+  }, [activeQueryTabIdRaw, activeConnectionId]);
+
   const activeTabResultsSelector = React.useCallback(
     (state: { resultsByTab: Record<string, ResultTab[]> }) =>
       activeQueryTabId ? state.resultsByTab[activeQueryTabId] : undefined,
@@ -740,19 +774,19 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
     [t],
   );
 
-  if (isExecuting) {
+  if ((isExecuting || isPending) && activeTabResults.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-4">
+      <div className="flex h-full w-full items-center justify-center p-4 select-none">
+        <div className="flex flex-col items-center gap-4 animate-in fade-in duration-200">
           <Loader2
             className="size-8 animate-spin text-muted-foreground/50"
             style={{ willChange: "transform" }}
           />
           <div className="flex flex-col items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
-              {t("executingQuery")}
+              {isExecuting ? t("executingQuery") : t("switchingConnection")}
             </span>
-            {onCancel && (
+            {isExecuting && onCancel && (
               <Button
                 variant="outline"
                 size="sm"
@@ -899,6 +933,32 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
       </div>
 
       <div className="flex-1 min-h-0 relative">
+        {(isExecuting || isPending) && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 select-none bg-background/60 backdrop-blur-[1px] animate-in fade-in duration-200">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2
+                className="size-8 animate-spin text-muted-foreground/50"
+                style={{ willChange: "transform" }}
+              />
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
+                  {isExecuting ? t("executingQuery") : t("switchingConnection")}
+                </span>
+                {isExecuting && onCancel && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 h-8 px-4 rounded-full border-destructive/30 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 cursor-pointer transition-all duration-150 active:scale-95 text-sm font-mono font-bold bg-transparent"
+                    onClick={onCancel}
+                  >
+                    {t("cancel")}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTabResults.map((tab) => {
           return (
             <TabsContent

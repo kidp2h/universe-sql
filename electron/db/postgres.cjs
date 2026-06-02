@@ -582,6 +582,125 @@ async function validatePostgresSql(payload, sql) {
   }
 }
 
+async function listPostgresSchemaMetadata(payload, schemaName) {
+  const connName = payload.name || payload.database || "unnamed";
+  logger.log(
+    `\n[DB] Fetching schema metadata for "${schemaName}" on "${connName}" (${payload.host}:${payload.port}/${payload.database})`,
+  );
+  const startTime = Date.now();
+  try {
+    const res = await withClient(payload, async (client) => {
+      // 1. Fetch table count
+      const schemaResult = await client.query(
+        `SELECT count(*) FROM information_schema.tables t WHERE t.table_schema = $1 AND t.table_type = 'BASE TABLE'`,
+        [schemaName],
+      );
+      const tableCount = Number(schemaResult.rows[0]?.count || 0);
+
+      // 2. Fetch tables for this schema
+      const tablesResult = await client.query(
+        `SELECT 
+          t.table_name, 
+          pg_total_relation_size(quote_ident(t.table_schema) || '.' || quote_ident(t.table_name)) as total_bytes,
+          (SELECT count(*) FROM information_schema.columns c WHERE c.table_schema = t.table_schema AND c.table_name = t.table_name) as column_count,
+          (SELECT count(*) FROM pg_indexes i WHERE i.schemaname = t.table_schema AND i.tablename = t.table_name) as index_count
+        FROM information_schema.tables t 
+        WHERE t.table_schema = $1 AND t.table_type = 'BASE TABLE' 
+        ORDER BY t.table_name`,
+        [schemaName],
+      );
+
+      const tables = [];
+      for (const tableRow of tablesResult.rows) {
+        const tableName = tableRow.table_name;
+
+        // 3. Fetch columns, primary keys, and foreign keys in batch for this table
+        const columnsPromise = client.query(
+          "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position",
+          [schemaName, tableName],
+        );
+        const primaryPromise = client.query(
+          "SELECT a.attname AS column_name FROM pg_index i JOIN pg_class c ON c.oid = i.indrelid JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey) WHERE i.indisprimary AND n.nspname = $1 AND c.relname = $2",
+          [schemaName, tableName],
+        );
+        const foreignPromise = client.query(
+          `SELECT 
+            kcu.column_name, 
+            ccu.table_name AS foreign_table_name,
+            ccu.column_name AS foreign_column_name
+          FROM information_schema.table_constraints tc 
+          JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema 
+          JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+          WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = $1 AND tc.table_name = $2`,
+          [schemaName, tableName],
+        );
+
+        // 4. Fetch indexes
+        const indexesPromise = client.query(
+          "SELECT indexname FROM pg_indexes WHERE schemaname = $1 AND tablename = $2 ORDER BY indexname",
+          [schemaName, tableName],
+        );
+
+        const [colsRes, primRes, forRes, idxRes] = await Promise.all([
+          columnsPromise,
+          primaryPromise,
+          foreignPromise,
+          indexesPromise,
+        ]);
+
+        const primarySet = new Set(primRes.rows.map((r) => r.column_name));
+        const foreignMap = new Map(
+          forRes.rows.map((r) => [
+            r.column_name,
+            `${r.foreign_table_name}.${r.foreign_column_name}`,
+          ]),
+        );
+
+        tables.push({
+          name: tableName,
+          size: Number(tableRow.total_bytes || 0),
+          columnCount: Number(tableRow.column_count || 0),
+          indexCount: Number(tableRow.index_count || 0),
+          columns: colsRes.rows.map((row) => ({
+            name: row.column_name,
+            dataType: row.data_type,
+            isPrimary: primarySet.has(row.column_name),
+            isForeign: foreignMap.has(row.column_name),
+            references: foreignMap.get(row.column_name),
+          })),
+          indexes: idxRes.rows.map((row) => row.indexname),
+        });
+      }
+
+      return {
+        ok: true,
+        schema: {
+          name: schemaName,
+          tableCount,
+          tables,
+        },
+      };
+    });
+    const duration = Date.now() - startTime;
+    logger.log(
+      `[DB] Successfully loaded schema metadata for "${schemaName}" on "${connName}" in ${duration}ms.`,
+    );
+    return res;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const errorMsg =
+      error?.message ||
+      (typeof error === "object" ? JSON.stringify(error) : String(error));
+    console.error(
+      `[DB] Failed to load schema metadata for "${schemaName}" on "${connName}" after ${duration}ms: ${errorMsg}`,
+    );
+    return {
+      ok: false,
+      message: errorMsg,
+    };
+  }
+}
+
 module.exports = {
   testPostgresConnection,
   listPostgresSchemas,
@@ -589,6 +708,7 @@ module.exports = {
   listPostgresColumns,
   listPostgresIndexes,
   listPostgresFullMetadata,
+  listPostgresSchemaMetadata,
   executePostgresQuery,
   validatePostgresSql,
 };

@@ -2,6 +2,21 @@ const { app, BrowserWindow, ipcMain, Menu } = require("electron");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+
+// Read config to disable hardware acceleration if requested
+try {
+  const userDataPath = app.getPath("userData");
+  const configPath = path.join(userDataPath, "config.json");
+  if (fs.existsSync(configPath)) {
+    const configData = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    if (configData && configData.disableGpu === true) {
+      app.disableHardwareAcceleration();
+    }
+  }
+} catch (e) {
+  console.error("[Main] Failed to check GPU acceleration config:", e);
+}
+
 const { registerWindowHandlers } = require("./handlers/window.cjs");
 const { registerDbHandlers } = require("./handlers/db.cjs");
 const { registerFsHandlers } = require("./handlers/fs.cjs");

@@ -60,23 +60,29 @@ export function SidebarPanel() {
     [width, sidebarPosition],
   );
 
-  if (!open) return null;
-
   return (
     <div
       style={{
         order: 2,
-        width: `${width}px`,
+        width: `${open ? width : 0}px`,
       }}
       className={cn(
-        "bg-card h-full flex flex-col shrink-0 overflow-hidden relative select-none",
+        "bg-card h-full flex flex-col shrink-0 overflow-hidden relative select-none transition-all duration-200 ease-in-out",
         sidebarPosition === "left"
-          ? "border-r border-border items-start"
-          : "border-l border-border items-end",
+          ? "border-r items-start"
+          : "border-l items-end",
+        open ? "border-border" : "border-transparent",
       )}
     >
       {/* Inner wrapper container with fixed min-width to prevent squishing */}
-      <div className="w-full min-w-[320px] h-full flex flex-col shrink-0">
+      <div
+        className={cn(
+          "w-full min-w-[320px] h-full flex flex-col shrink-0 transition-opacity duration-200 ease-in-out",
+          open
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none",
+        )}
+      >
         {!mounted ? (
           <div className="w-full min-w-[320px] h-full flex flex-col shrink-0 p-4 space-y-4 animate-in fade-in duration-300">
             {/* Header Skeleton */}
@@ -110,11 +116,12 @@ export function SidebarPanel() {
 
       {/* Resize Handle line (VS Code Style) */}
       <div
-        onMouseDown={handleMouseDown}
+        onMouseDown={open ? handleMouseDown : undefined}
         className={cn(
           "absolute top-0 bottom-0 w-1 cursor-col-resize z-50 hover:bg-brand/40 transition-all duration-150 active:bg-brand",
           sidebarPosition === "left" ? "right-0" : "left-0",
           isDragging && "bg-brand",
+          !open && "pointer-events-none opacity-0",
         )}
       />
     </div>

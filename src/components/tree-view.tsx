@@ -389,7 +389,12 @@ const TreeNode = React.memo(
   },
   (prevProps, nextProps) => {
     if (
-      prevProps.item !== nextProps.item ||
+      prevProps.item.id !== nextProps.item.id ||
+      prevProps.item.name !== nextProps.item.name ||
+      prevProps.item.isLoading !== nextProps.item.isLoading ||
+      prevProps.item.count !== nextProps.item.count ||
+      prevProps.item.tableCount !== nextProps.item.tableCount ||
+      prevProps.item.children !== nextProps.item.children ||
       prevProps.level !== nextProps.level ||
       prevProps.handleSelectChange !== nextProps.handleSelectChange ||
       prevProps.expandedItemIds !== nextProps.expandedItemIds ||
@@ -533,7 +538,11 @@ const TreeLeaf = React.memo(
   ),
   (prevProps, nextProps) => {
     if (
-      prevProps.item !== nextProps.item ||
+      prevProps.item.id !== nextProps.item.id ||
+      prevProps.item.name !== nextProps.item.name ||
+      prevProps.item.isLoading !== nextProps.item.isLoading ||
+      prevProps.item.count !== nextProps.item.count ||
+      prevProps.item.tableCount !== nextProps.item.tableCount ||
       prevProps.level !== nextProps.level ||
       prevProps.handleSelectChange !== nextProps.handleSelectChange ||
       prevProps.defaultLeafIcon !== nextProps.defaultLeafIcon ||
@@ -578,10 +587,7 @@ const AccordionContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <AccordionPrimitive.Content
     ref={ref}
-    className={cn(
-      "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
-      className,
-    )}
+    className={cn("overflow-hidden text-sm", className)}
     {...props}
   >
     <div className="pb-1 pt-0">{children}</div>

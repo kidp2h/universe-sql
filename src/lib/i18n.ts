@@ -44,10 +44,21 @@ const resources = {
   },
 };
 
+let initialLanguage = "en";
+if (typeof window !== "undefined") {
+  try {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (stored && SUPPORTED_LANGUAGES.includes(stored as any)) {
+      initialLanguage = stored;
+    }
+  } catch {
+    // Ignore
+  }
+}
+
 void i18n.use(initReactI18next).init({
   resources,
-  // Always `en` on first render so SSR HTML matches the client (localStorage is restored in I18nProvider).
-  lng: "en",
+  lng: initialLanguage,
   fallbackLng: "en",
   interpolation: {
     escapeValue: false, // React already escapes values from XSS

@@ -273,8 +273,37 @@ export function useQuery({
     activeTabConnection?.id,
   ]);
 
+  const [isFilePickerOpen, setIsFilePickerOpen] = React.useState(false);
+
+  const handleCustomFileSelect = React.useCallback(
+    async (filePath: string) => {
+      if (window.electron?.readQuery) {
+        try {
+          const res = await window.electron.readQuery(filePath);
+          if (res.ok && res.content !== undefined) {
+            const fileName = filePath.split(/[/\\]/).pop() || filePath;
+            openSqlTab({
+              title: fileName,
+              sql: res.content,
+              filePath,
+              connectionId: activeTabConnection?.id,
+            });
+          } else {
+            toast.error("Failed to read file", {
+              description: res.message,
+            });
+          }
+        } catch (error) {
+          console.error("Error reading file via custom picker:", error);
+          toast.error("An error occurred while reading the file.");
+        }
+      }
+    },
+    [openSqlTab, activeTabConnection?.id],
+  );
+
   const handleOpenFileClick = React.useCallback(() => {
-    fileInputRef.current?.click();
+    setIsFilePickerOpen(true);
   }, []);
 
   const handleOpenFileChange = React.useCallback(
@@ -1062,5 +1091,8 @@ export function useQuery({
     dmlConfirmation,
     setDmlConfirmation,
     cancelQuery,
+    isFilePickerOpen,
+    setIsFilePickerOpen,
+    handleCustomFileSelect,
   };
 }

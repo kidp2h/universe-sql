@@ -98,6 +98,8 @@ export function ExplorerPanel() {
         !item.id.includes(":schema:") &&
         !item.id.includes(":query:") &&
         !item.id.includes(":queries");
+      const isSchema =
+        item.id.includes(":schema:") && !item.id.includes(":table:");
 
       if (isConnection) {
         logger.log(
@@ -231,10 +233,160 @@ export function ExplorerPanel() {
             children: resetDbNodes,
           });
         }
+      } else if (isSchema) {
+        const parts = item.id.split(":schema:");
+        const schemaName = parts[1];
+        const dbPath = parts[0];
+        const dbName = dbPath.split(":db:")[1];
+
+        logger.log(
+          `[Explorer] Refreshing schema metadata: "${schemaName}" inside "${dbName}"`,
+        );
+
+        // 1. Mark schema as loading in tree
+        const dbChildren = conn.children || [];
+        const loadingDbNodes = dbChildren.map((dbNode) => {
+          if (dbNode.id === dbPath) {
+            const schemas = dbNode.children || [];
+            const updatedSchemas = schemas.map((sNode) => {
+              if (sNode.id === item.id) {
+                return { ...sNode, isLoading: true };
+              }
+              return sNode;
+            });
+            return { ...dbNode, children: updatedSchemas };
+          }
+          return dbNode;
+        });
+
+        useSidebarStore.getState().updateConnection({
+          ...conn,
+          children: loadingDbNodes,
+        });
+
+        try {
+          const res = await window.electron.getSchemaMetadata(conn, schemaName);
+
+          if (res.ok && res.schema) {
+            const s = res.schema;
+            const newSchemaNode = {
+              id: `${conn.id}:db:${dbName}:schema:${s.name}`,
+              name: s.name,
+              type: "schema",
+              tableCount: s.tableCount,
+              children: s.tables.map((t: any) => ({
+                id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}`,
+                name: t.name,
+                type: "table",
+                size: t.size,
+                children: [
+                  {
+                    id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:columns`,
+                    name: "Columns",
+                    count: t.columnCount,
+                    children: t.columns.map((col: any) => ({
+                      id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:column:${col.name}`,
+                      name: col.name,
+                      isPrimary: col.isPrimary,
+                      isForeign: col.isForeign,
+                      dataType: col.dataType,
+                      references: col.references,
+                    })),
+                  },
+                  {
+                    id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:indexes`,
+                    name: "Indexes",
+                    count: t.indexCount,
+                    children: t.indexes.map((idxName: any) => ({
+                      id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:index:${idxName}`,
+                      name: idxName,
+                    })),
+                  },
+                ],
+              })),
+            };
+
+            const finalDbNodes = (conn.children || []).map((dbNode) => {
+              if (dbNode.id === dbPath) {
+                const schemas = dbNode.children || [];
+                const updatedSchemas = schemas.map((sNode) => {
+                  if (sNode.id === item.id) {
+                    return {
+                      ...newSchemaNode,
+                      isLoading: false,
+                    };
+                  }
+                  return sNode;
+                });
+                return { ...dbNode, children: updatedSchemas };
+              }
+              return dbNode;
+            });
+
+            useSidebarStore.getState().updateConnection({
+              ...conn,
+              children: finalDbNodes,
+            });
+            logger.log(
+              `[Explorer] Successfully refreshed schema "${schemaName}"`,
+            );
+          } else {
+            // Revert loading on error
+            const resetDbNodes = (conn.children || []).map((dbNode) => {
+              if (dbNode.id === dbPath) {
+                const schemas = dbNode.children || [];
+                const updatedSchemas = schemas.map((sNode) => {
+                  if (sNode.id === item.id) {
+                    return { ...sNode, isLoading: false };
+                  }
+                  return sNode;
+                });
+                return { ...dbNode, children: updatedSchemas };
+              }
+              return dbNode;
+            });
+            useSidebarStore.getState().updateConnection({
+              ...conn,
+              children: resetDbNodes,
+            });
+          }
+        } catch (err) {
+          console.error("Error refreshing schema metadata:", err);
+          const resetDbNodes = (conn.children || []).map((dbNode) => {
+            if (dbNode.id === dbPath) {
+              const schemas = dbNode.children || [];
+              const updatedSchemas = schemas.map((sNode) => {
+                if (sNode.id === item.id) {
+                  return { ...sNode, isLoading: false };
+                }
+                return sNode;
+              });
+              return { ...dbNode, children: updatedSchemas };
+            }
+            return dbNode;
+          });
+          useSidebarStore.getState().updateConnection({
+            ...conn,
+            children: resetDbNodes,
+          });
+        }
       }
     },
     [connections],
   );
+
+  React.useEffect(() => {
+    const handleRefreshNode = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.id) {
+        handleRefresh({ id: detail.id } as TreeDataItem);
+      }
+    };
+    globalThis.addEventListener("usql:refresh-node", handleRefreshNode);
+    return () => {
+      globalThis.removeEventListener("usql:refresh-node", handleRefreshNode);
+    };
+  }, [handleRefresh]);
 
   const handleSelectChange = React.useCallback(
     async (item: TreeDataItem | undefined) => {

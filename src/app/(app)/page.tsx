@@ -15,6 +15,7 @@ import { useQuery } from "@/hooks/use-query";
 import { Loader2 } from "lucide-react";
 
 import { DMLConfirmationDialog } from "@/components/query/dml-confirmation-dialog";
+import { CustomFilePicker } from "@/components/custom-file-picker";
 import { SqlEditor } from "@/components/query/query-codemirror-editor";
 import { useTheme } from "@/hooks/use-theme";
 import { useConnection } from "@/hooks/use-connection";
@@ -28,8 +29,102 @@ import SQLReferencePage from "@/components/sql-reference";
 import { VisualQueryStoryPage } from "@/components/query/query-story-page";
 import { ERDContainer } from "@/components/erd/erd-container";
 import { DatabaseDumpPage } from "@/components/database-dump";
+import { useTranslation } from "react-i18next";
+
+const SqlWorkspace = React.memo(
+  function SqlWorkspace({
+    queryTabs,
+    activeQueryTabId,
+    connections,
+    activeConnection,
+    theme,
+    setQuerySql,
+    getSelectedTextRef,
+  }: {
+    queryTabs: any[];
+    activeQueryTabId: string | undefined;
+    connections: any[];
+    activeConnection: any;
+    theme: string;
+    setQuerySql: any;
+    getSelectedTextRef: any;
+  }) {
+    const [, setIsPending] = React.useState(false);
+    const [deferredTabId, setDeferredTabId] = React.useState(activeQueryTabId);
+
+    const prevActiveTabIdRef = React.useRef(activeQueryTabId);
+    const prevConnectionIdRef = React.useRef<string | null>(null);
+
+    const activeTab = queryTabs.find((t) => t.id === activeQueryTabId);
+    const activeConnectionId =
+      activeTab?.connectionId || activeConnection?.id || null;
+
+    React.useEffect(() => {
+      const prevTabId = prevActiveTabIdRef.current;
+      const prevConnectionId = prevConnectionIdRef.current;
+
+      prevActiveTabIdRef.current = activeQueryTabId;
+      prevConnectionIdRef.current = activeConnectionId;
+
+      if (activeQueryTabId !== prevTabId) {
+        if (prevConnectionId && activeConnectionId !== prevConnectionId) {
+          setIsPending(true);
+          const timer = setTimeout(() => {
+            setDeferredTabId(activeQueryTabId);
+            setIsPending(false);
+          }, 120);
+          return () => clearTimeout(timer);
+        }
+        setDeferredTabId(activeQueryTabId);
+        setIsPending(false);
+      }
+    }, [activeQueryTabId, activeConnectionId]);
+
+    return (
+      <div className="h-full w-full relative">
+        {queryTabs.map((tab) => {
+          const isActive = tab.id === deferredTabId;
+          const isSqlTab = !tab.type || tab.type === "sql";
+          if (!isSqlTab) return null;
+
+          const tabConnection =
+            connections.find((c) => c.id === tab.connectionId) ||
+            activeConnection;
+
+          return (
+            <div
+              key={tab.id}
+              className="absolute inset-0"
+              style={{ display: isActive ? "block" : "none" }}
+            >
+              <SqlEditor
+                value={tab.sql || ""}
+                onChange={setQuerySql}
+                theme={theme}
+                getSelectedTextRef={getSelectedTextRef}
+                activeTabId={isActive ? deferredTabId : undefined}
+                connection={tabConnection}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.queryTabs === nextProps.queryTabs &&
+      prevProps.activeQueryTabId === nextProps.activeQueryTabId &&
+      prevProps.connections === nextProps.connections &&
+      prevProps.activeConnection === nextProps.activeConnection &&
+      prevProps.theme === nextProps.theme
+    );
+  },
+);
+SqlWorkspace.displayName = "SqlWorkspace";
 
 export default function Home() {
+  const { t } = useTranslation();
   logger.log("[Home] Rendered");
   const { showResultsPanel } = useSidebar();
   const [isEditorFocused] = React.useState(false);
@@ -53,9 +148,12 @@ export default function Home() {
     dmlConfirmation,
     setDmlConfirmation,
     cancelQuery,
+    isFilePickerOpen,
+    setIsFilePickerOpen,
+    handleCustomFileSelect,
   } = useQuery({ isEditorFocused });
 
-  const [mounted, setMounted] = React.useState(false);
+  const [mounted, setMounted] = React.useState(true);
   React.useEffect(() => {
     setMounted(true);
 
@@ -99,6 +197,11 @@ export default function Home() {
         onChange={handleOpenFileChange}
         className="hidden"
       />
+      <CustomFilePicker
+        open={isFilePickerOpen}
+        onOpenChange={setIsFilePickerOpen}
+        onFileSelect={handleCustomFileSelect}
+      />
       {!mounted ? (
         <div className="flex h-full w-full flex-col items-center justify-center select-none bg-background animate-in fade-in duration-300">
           <div className="relative flex flex-col items-center justify-center">
@@ -124,7 +227,7 @@ export default function Home() {
             <div className="flex items-center gap-2 mt-2">
               <Loader2 className="size-4 animate-spin text-brand" />
               <span className="text-sm text-muted-foreground font-medium font-sans">
-                Restoring your workspace...
+                {t("restoringYourWorkspace")}
               </span>
             </div>
           </div>
@@ -151,36 +254,15 @@ export default function Home() {
                 className="flex-1 min-w-0"
               >
                 <ResizablePanel defaultSize={50} minSize={15}>
-                  <div className="h-full w-full relative">
-                    {queryTabs.map((tab) => {
-                      const isActive = tab.id === activeQueryTabId;
-                      const isSqlTab = !tab.type || tab.type === "sql";
-                      if (!isSqlTab) return null;
-
-                      const tabConnection =
-                        connections.find((c) => c.id === tab.connectionId) ||
-                        activeConnection;
-
-                      return (
-                        <div
-                          key={tab.id}
-                          className="absolute inset-0"
-                          style={{ display: isActive ? "block" : "none" }}
-                        >
-                          <SqlEditor
-                            value={tab.sql || ""}
-                            onChange={setQuerySql}
-                            theme={theme}
-                            getSelectedTextRef={getSelectedTextRef}
-                            activeTabId={
-                              isActive ? activeQueryTabId : undefined
-                            }
-                            connection={tabConnection}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <SqlWorkspace
+                    queryTabs={queryTabs}
+                    activeQueryTabId={activeQueryTabId}
+                    connections={connections}
+                    activeConnection={activeConnection}
+                    theme={theme}
+                    setQuerySql={setQuerySql}
+                    getSelectedTextRef={getSelectedTextRef}
+                  />
                 </ResizablePanel>
                 {activeTab && showResultsPanel ? (
                   <ResizableHandle withHandle />

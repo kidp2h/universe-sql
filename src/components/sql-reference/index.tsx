@@ -295,8 +295,8 @@ export default function SQLReferencePage() {
       <div className="w-64 border-r bg-card flex flex-col shrink-0">
         <div className="p-4 border-b shrink-0 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-              <BookOpen className="size-3.5 text-brand" />
+            <span className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+              <BookOpen className="size-5 text-brand shrink-0" />
               {t("toolSqlRefName")}
             </span>
             <span className="text-xs bg-brand/10 text-brand px-1.5 py-0.5 rounded font-mono font-bold">
@@ -304,9 +304,8 @@ export default function SQLReferencePage() {
             </span>
           </div>
 
-          {/* Search bar */}
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -340,7 +339,7 @@ export default function SQLReferencePage() {
                   <span className="flex items-center gap-2">
                     <Bookmark
                       className={cn(
-                        "size-3.5",
+                        "size-4 shrink-0",
                         isActive ? "text-brand" : "text-muted-foreground/60",
                       )}
                     />
@@ -362,7 +361,7 @@ export default function SQLReferencePage() {
         <div className="p-6 border-b bg-card shrink-0 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Sparkles className="size-4 text-brand animate-pulse" />
+              <Sparkles className="size-5 text-brand shrink-0 animate-pulse" />
               {activeCategoryData ? t(activeCategoryData.id) : t("sqlLibrary")}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5 leading-normal">

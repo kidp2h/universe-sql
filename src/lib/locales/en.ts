@@ -255,6 +255,25 @@ const en = {
   menuResult: "Result",
   menuHelp: "Help",
   menuRefresh: "Refresh",
+  menuNewTable: "New Table",
+  menuRenameSchema: "Rename Schema",
+  menuDropSchema: "Drop Schema",
+  newTableTemplateCreated: "Table template created in a new tab",
+  promptRenameSchema: 'Enter a new name for schema "{{name}}":',
+  renamingSchema: "Renaming schema...",
+  renameSchemaSuccess: 'Schema renamed to "{{name}}" successfully',
+  confirmDropSchema:
+    'Are you sure you want to drop schema "{{name}}"? This will delete all tables and data!',
+  droppingSchema: "Dropping schema...",
+  dropSchemaSuccess: 'Schema "{{name}}" dropped successfully',
+  createTableVisuallyDesc:
+    "Create database tables visually with fields, constraints and types.",
+  tableNameRequired: "Table name is required.",
+  columnsRequired: "At least one column is required.",
+  createTableSuccess: 'Table "{{name}}" created successfully!',
+  noSqlGenerated: "No SQL generated yet. Provide table name and columns.",
+  sqlCopied: "CREATE TABLE SQL copied to clipboard!",
+  createTable: "Create Table",
   menuEditConnection: "Edit connection",
   menuLockDatabase: "Lock Database",
   menuUnlockDatabase: "Unlock Database",
@@ -530,6 +549,23 @@ const en = {
   postgresOnlyWarning:
     "The database backup feature currently only supports PostgreSQL connections utilizing pg_dump.",
   restoringYourWorkspace: "Restoring your workspace...",
+  showAllCommands: "Show All Commands",
+  toggleDevTools: "Toggle Developer Tools",
+  systemPerformance: "System & Performance",
+  disableGpuLabel: "Disable Hardware Acceleration (GPU)",
+  disableGpuDesc:
+    "Turn off GPU acceleration to resolve potential display issues. A restart of Universe SQL is required to apply.",
+  gpuSettingsRestartToast:
+    "System hardware acceleration settings updated. Please restart Universe SQL to apply changes.",
+  switchingConnection: "Switching connection...",
+  customFileExplorerTitle: "Custom File Explorer",
+  selectFileToOpen: "Select a file to open",
+  searchFilesPlaceholder: "Search files and folders...",
+  emptyDirectory: "Empty directory or no matching files found",
+  loadingFiles: "Loading files...",
+  unsupportedFileFormat:
+    "Unsupported file format. Only {{ext}} files are allowed.",
+  openFileBtn: "Open File",
 };
 
 export default en;

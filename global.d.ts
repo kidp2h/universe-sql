@@ -200,6 +200,31 @@ declare global {
         }[];
         message?: string;
       }>;
+      getSchemaMetadata: (
+        payload: any,
+        schemaName: string,
+      ) => Promise<{
+        ok: boolean;
+        schema?: {
+          name: string;
+          tableCount: number;
+          tables: {
+            name: string;
+            size: number;
+            columnCount: number;
+            indexCount: number;
+            columns: {
+              name: string;
+              isPrimary: boolean;
+              isForeign: boolean;
+              dataType: string;
+              references?: string;
+            }[];
+            indexes: string[];
+          }[];
+        };
+        message?: string;
+      }>;
       encryptPassword: (
         password: string,
       ) => Promise<{ ok: boolean; encrypted?: string; message?: string }>;
@@ -207,6 +232,24 @@ declare global {
         password: string,
       ) => Promise<{ ok: boolean; decrypted?: string; message?: string }>;
       getAppVersion: () => Promise<string>;
+      getAppConfig: () => Promise<{ ok: boolean; config?: any }>;
+      saveAppConfig: (
+        config: any,
+      ) => Promise<{ ok: boolean; message?: string }>;
+      toggleDevTools: () => Promise<{ ok: boolean }>;
+      getUserHomeDir: () => Promise<string>;
+      readDirectory: (dirPath: string) => Promise<{
+        ok: boolean;
+        items?: {
+          name: string;
+          path: string;
+          isDirectory: boolean;
+          isFile: boolean;
+          size: number;
+          mtime: number;
+        }[];
+        message?: string;
+      }>;
     };
     updater: UpdaterAPI;
   }

@@ -6,6 +6,7 @@ const {
   indexHandlers,
   queryHandlers,
   fullMetadataHandlers,
+  schemaMetadataHandlers,
   validateSqlHandlers,
 } = require("../db/handlers.cjs");
 
@@ -99,6 +100,19 @@ function registerDbHandlers(ipcMain) {
     }
 
     return handler(payload);
+  });
+
+  ipcMain.handle("get-schema-metadata", async (_event, payload) => {
+    if (!payload || !payload.connection || !payload.schemaName) {
+      return { ok: false, message: "Missing schema request payload" };
+    }
+
+    const handler = schemaMetadataHandlers[payload.connection.dbType];
+    if (!handler) {
+      return { ok: false, message: "Unsupported database type" };
+    }
+
+    return handler(payload.connection, payload.schemaName);
   });
 
   ipcMain.handle("validate-sql", async (_event, payload) => {

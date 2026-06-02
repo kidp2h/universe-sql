@@ -254,6 +254,26 @@ const vi = {
   menuResult: "Kết quả",
   menuHelp: "Trợ giúp",
   menuRefresh: "Làm mới",
+  menuNewTable: "Tạo bảng mới",
+  menuRenameSchema: "Đổi tên Schema",
+  menuDropSchema: "Xóa Schema",
+  newTableTemplateCreated: "Mẫu bảng mới đã được tạo trong một tab mới",
+  promptRenameSchema: 'Nhập tên mới cho schema "{{name}}":',
+  renamingSchema: "Đang đổi tên schema...",
+  renameSchemaSuccess: 'Đổi tên schema thành "{{name}}" thành công',
+  confirmDropSchema:
+    'Bạn có chắc chắn muốn xóa schema "{{name}}"? Thao tác này sẽ xóa tất cả các bảng và dữ liệu!',
+  droppingSchema: "Đang xóa schema...",
+  dropSchemaSuccess: 'Xóa schema "{{name}}" thành công',
+  createTableVisuallyDesc:
+    "Tạo bảng cơ sở dữ liệu trực quan với các trường, ràng buộc và kiểu dữ liệu.",
+  tableNameRequired: "Tên bảng là bắt buộc.",
+  columnsRequired: "Phải có ít nhất một cột.",
+  createTableSuccess: 'Bảng "{{name}}" đã được tạo thành công!',
+  noSqlGenerated:
+    "Chưa có SQL được tạo. Vui lòng cung cấp tên bảng và các cột.",
+  sqlCopied: "SQL CREATE TABLE đã được sao chép vào bộ nhớ tạm!",
+  createTable: "Tạo bảng",
   menuEditConnection: "Sửa kết nối",
   menuLockDatabase: "Khóa cơ sở dữ liệu (Chỉ đọc)",
   menuUnlockDatabase: "Mở khóa cơ sở dữ liệu",
@@ -532,6 +552,23 @@ const vi = {
   postgresOnlyWarning:
     "Tính năng sao lưu hiện tại chỉ hỗ trợ các kết nối PostgreSQL thông qua pg_dump.",
   restoringYourWorkspace: "Đang khôi phục không gian làm việc của bạn...",
+  showAllCommands: "Hiển thị tất cả lệnh",
+  toggleDevTools: "Bật/Tắt công cụ phát triển",
+  systemPerformance: "Hệ thống & Hiệu năng",
+  disableGpuLabel: "Tắt gia tốc phần cứng (GPU)",
+  disableGpuDesc:
+    "Tắt gia tốc đồ họa phần cứng GPU để khắc phục các lỗi hiển thị giao diện. Yêu cầu khởi động lại ứng dụng để áp dụng.",
+  gpuSettingsRestartToast:
+    "Đã cập nhật cài đặt gia tốc phần cứng. Vui lòng khởi động lại Universe SQL để áp dụng thay đổi.",
+  switchingConnection: "Đang chuyển kết nối...",
+  customFileExplorerTitle: "Trình khám phá Tệp tin",
+  selectFileToOpen: "Chọn tệp tin để mở",
+  searchFilesPlaceholder: "Tìm kiếm tệp tin và thư mục...",
+  emptyDirectory: "Thư mục trống hoặc không tìm thấy tệp phù hợp",
+  loadingFiles: "Đang tải danh sách tệp...",
+  unsupportedFileFormat:
+    "Định dạng tệp không hỗ trợ. Chỉ cho phép các tệp {{ext}}.",
+  openFileBtn: "Mở Tệp",
 };
 
 export default vi;

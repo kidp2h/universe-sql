@@ -52,6 +52,14 @@ function registerWindowHandlers(ipcMain) {
     }
     return { ok: true };
   });
+
+  ipcMain.handle("window-toggle-devtools", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      win.webContents.toggleDevTools();
+    }
+    return { ok: true };
+  });
 }
 
 module.exports = { registerWindowHandlers };

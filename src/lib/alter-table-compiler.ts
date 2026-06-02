@@ -138,3 +138,52 @@ export function generateAlterTableSql(
 
   return statements.join("\n");
 }
+
+/**
+ * Compiles visual create table specifications into PostgreSQL CREATE TABLE DDL.
+ */
+export function generateCreateTableSql(
+  schema: string,
+  tableName: string,
+  columns: ColumnState[],
+): string {
+  if (!tableName.trim()) return "";
+  const fullTableNameEscaped = `"${schema}"."${tableName.trim()}"`;
+
+  const colDefinitions: string[] = [];
+  const primaryKeys: string[] = [];
+  const comments: string[] = [];
+
+  for (const col of columns) {
+    if (!col.name.trim()) continue;
+    let def = `"${col.name.trim()}" ${col.type}`;
+    if (col.not_null) {
+      def += " NOT NULL";
+    }
+    if (col.default_value?.trim()) {
+      def += ` DEFAULT ${col.default_value}`;
+    }
+    colDefinitions.push(def);
+
+    if (col.is_primary) {
+      primaryKeys.push(`"${col.name.trim()}"`);
+    }
+
+    if (col.comment?.trim()) {
+      comments.push(
+        `COMMENT ON COLUMN ${fullTableNameEscaped}."${col.name.trim()}" IS '${col.comment.replace(/'/g, "''")}';`,
+      );
+    }
+  }
+
+  if (primaryKeys.length > 0) {
+    colDefinitions.push(`PRIMARY KEY (${primaryKeys.join(", ")})`);
+  }
+
+  let sql = `CREATE TABLE ${fullTableNameEscaped} (\n  ${colDefinitions.join(",\n  ")}\n);`;
+  if (comments.length > 0) {
+    sql += `\n${comments.join("\n")}`;
+  }
+
+  return sql;
+}

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ConnectionContextMenu } from "@/components/connection-context-menu";
 import { TableContextMenu } from "@/components/table-context-menu";
+import { SchemaContextMenu } from "@/components/schema-context-menu";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -146,6 +147,7 @@ export const SidebarItem = React.memo(
     onViewComments,
   }: SidebarItemProps) {
     const { t } = useTranslation();
+
     const isConnection = !item.id.includes(":");
     const isTable =
       item.id.includes(":table:") &&
@@ -165,6 +167,14 @@ export const SidebarItem = React.memo(
       (item.id.includes(":columns") && !item.id.includes(":column:")) ||
       (item.id.includes(":indexes") && !item.id.includes(":index:")) ||
       (item.id.includes(":queries") && !item.id.includes(":query:"));
+
+    const isSchema =
+      item.id.includes(":schema:") &&
+      !item.id.includes(":table:") &&
+      !item.id.includes(":column:") &&
+      !item.id.includes(":index:") &&
+      !item.id.includes(":queries") &&
+      !item.id.includes(":query:");
 
     // Resolve icon with clear priority to fix reported "wrong icon" issues
     const ResolvedIcon = React.useMemo(() => {
@@ -217,6 +227,14 @@ export const SidebarItem = React.memo(
       return null;
     }, [isColumn, (item as any).dataType]);
 
+    const displayedName = React.useMemo(() => {
+      if (item.name === "Columns") return t("folderColumns");
+      if (item.name === "Indexes") return t("folderIndexes");
+      if (item.name === "No schemas found") return t("noSchemasFound");
+      if (item.name === "Failed to load") return t("failedToLoad");
+      return String(item.name);
+    }, [item.name, t]);
+
     const content = (
       <div className="flex items-center w-full min-w-0 overflow-hidden">
         {item.isLoading ? (
@@ -253,15 +271,7 @@ export const SidebarItem = React.memo(
             isTable && "font-medium",
           )}
         >
-          <span className="truncate min-w-0">
-            {React.useMemo(() => {
-              if (item.name === "Columns") return t("folderColumns");
-              if (item.name === "Indexes") return t("folderIndexes");
-              if (item.name === "No schemas found") return t("noSchemasFound");
-              if (item.name === "Failed to load") return t("failedToLoad");
-              return String(item.name);
-            }, [item.name, t])}
-          </span>
+          <span className="truncate min-w-0">{displayedName}</span>
           {isConnection && (item as any).readOnly && (
             <Lock className="size-3.5 text-amber-500 shrink-0 inline-block" />
           )}
@@ -331,6 +341,14 @@ export const SidebarItem = React.memo(
         <TableContextMenu item={item} onViewComments={onViewComments}>
           {content}
         </TableContextMenu>
+      );
+    }
+
+    if (isSchema) {
+      return (
+        <SchemaContextMenu item={item} onRefresh={onRefresh}>
+          {content}
+        </SchemaContextMenu>
       );
     }
 

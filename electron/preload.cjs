@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.invoke("get-indexes", { connection, schema, table }),
   getFullMetadata: (payload) =>
     ipcRenderer.invoke("get-full-metadata", payload),
+  getSchemaMetadata: (connection, schemaName) =>
+    ipcRenderer.invoke("get-schema-metadata", { connection, schemaName }),
   executeQuery: (payload) => ipcRenderer.invoke("execute-query", payload),
   saveQuery: (payload) => ipcRenderer.invoke("save-query", payload),
   readQuery: (filePath) => ipcRenderer.invoke("read-query", filePath),
@@ -53,6 +55,11 @@ contextBridge.exposeInMainWorld("electron", {
   decryptPassword: (password) =>
     ipcRenderer.invoke("decrypt-password", password),
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  getAppConfig: () => ipcRenderer.invoke("get-app-config"),
+  saveAppConfig: (config) => ipcRenderer.invoke("save-app-config", config),
+  toggleDevTools: () => ipcRenderer.invoke("window-toggle-devtools"),
+  getUserHomeDir: () => ipcRenderer.invoke("get-user-home-dir"),
+  readDirectory: (dirPath) => ipcRenderer.invoke("read-directory", dirPath),
 });
 
 contextBridge.exposeInMainWorld("updater", {

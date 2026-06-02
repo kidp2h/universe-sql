@@ -3,16 +3,27 @@
 import { useKeyboard } from "@/hooks/use-keyboard";
 import { useGlobalEvents } from "@/hooks/use-global-events";
 import { useTheme } from "@/hooks/use-theme";
-import { Menubar } from "@/components/ui/menubar";
+import { useTranslation } from "react-i18next";
+import { Info, RefreshCw, LogOut, Terminal, Code2 } from "lucide-react";
+import {
+  Menubar,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarSeparator,
+  MenubarTrigger,
+} from "@/components/ui/menubar";
+import { toast } from "sonner";
+import { Shortcut } from "@/components/ui/kbd";
 import { AppMenubarFile } from "./app-menubar-file";
 import { AppMenubarView } from "./app-menubar-view";
 import { AppMenubarTools } from "./app-menubar-tools";
 import { AppMenubarRun } from "./app-menubar-run";
 import { AppMenubarResult } from "./app-menubar-result";
-import { AppMenubarHelp } from "./app-menubar-help";
 import { TitlebarControls } from "./titlebar-controls";
 
 export function AppMenubar() {
+  const { t } = useTranslation();
   const { toggleTheme } = useTheme();
   const { dispatchCommand, dispatchAppearance } = useGlobalEvents();
 
@@ -155,6 +166,15 @@ export function AppMenubar() {
     onKeyDown: () => dispatchCommand("sql-reference"),
   });
 
+  // Open command palette (Ctrl+Shift+P)
+  useKeyboard({
+    key: "p",
+    ctrlKey: true,
+    metaKey: true,
+    shiftKey: true,
+    onKeyDown: () => dispatchCommand("open-command-palette"),
+  });
+
   // Export CSV
   useKeyboard({
     key: "c",
@@ -176,21 +196,71 @@ export function AppMenubar() {
   return (
     <div className="border-b flex flex-col">
       <div className="flex items-stretch border-b">
-        {/* App Logo */}
-        <div className="flex items-center pl-3 pr-1.5 shrink-0 select-none">
-          <img
-            src="/icon.png"
-            alt="Universe SQL Logo"
-            className="size-4.5 object-contain pointer-events-none dark:invert"
-          />
-        </div>
         <Menubar className="border-0 shrink-0">
+          {/* App Logo Dropdown Menu */}
+          <MenubarMenu>
+            <MenubarTrigger className="px-3 cursor-pointer flex items-center justify-center focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground rounded-none h-full transition-colors select-none shrink-0 outline-hidden">
+              <img
+                src="/icon.png"
+                alt="Universe SQL Logo"
+                className="size-4.5 object-contain pointer-events-none dark:invert"
+              />
+            </MenubarTrigger>
+            <MenubarContent className="min-w-[220px]">
+              <MenubarItem
+                onSelect={() => dispatchCommand("open-command-palette")}
+              >
+                <Terminal className="size-4 text-slate-500" />
+                <span>{t("showAllCommands") || "Command Palette"}</span>
+                <Shortcut shortcut="⌘ + ⇧ + P" />
+              </MenubarItem>
+              <MenubarItem
+                onSelect={() => {
+                  if (window.electron?.toggleDevTools) {
+                    window.electron.toggleDevTools();
+                  }
+                }}
+              >
+                <Code2 className="size-4 text-slate-500" />
+                <span>{t("toggleDevTools") || "Toggle Developer Tools"}</span>
+                <Shortcut shortcut="⌘ + ⇧ + I" />
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onSelect={() => dispatchCommand("open-about")}>
+                <Info className="size-4 text-slate-500" />
+                <span>{t("aboutTitle")}</span>
+              </MenubarItem>
+              <MenubarItem
+                onSelect={() => {
+                  if (window.updater?.checkForUpdates) {
+                    window.updater.checkForUpdates();
+                  } else {
+                    toast.error(
+                      t("updaterUnavailableInBrowser") ||
+                        "Updater is not available in browser mode.",
+                    );
+                  }
+                }}
+              >
+                <RefreshCw className="size-4 text-slate-500" />
+                <span>{t("checkForUpdates")}</span>
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem
+                onSelect={() => dispatchCommand("quit")}
+                className="text-destructive focus:text-destructive"
+              >
+                <LogOut className="size-4" />
+                <span>{t("exit")}</span>
+              </MenubarItem>
+            </MenubarContent>
+          </MenubarMenu>
+
           <AppMenubarFile />
           <AppMenubarView />
           <AppMenubarTools />
           <AppMenubarRun />
           <AppMenubarResult />
-          <AppMenubarHelp />
         </Menubar>
         <div className="app-region-drag flex-1" />
         <TitlebarControls />
