@@ -44,6 +44,12 @@ function applyQueryLimit(
   return { sql: `${trimmed} LIMIT ${limit}`, isLimited: true };
 }
 
+// Helper: Check if SQL is a SELECT or CTE query
+function isSelectOrCTE(sql: string): boolean {
+  const trimmed = sql.trim().toUpperCase();
+  return trimmed.startsWith("SELECT") || trimmed.startsWith("WITH");
+}
+
 interface UseQueryProps {
   isEditorFocused: boolean;
   enableCommands?: boolean;
@@ -807,8 +813,9 @@ export function useQuery({
       }
     }
 
-    if (!sqlToExplain.toUpperCase().startsWith("SELECT")) {
-      toast.error("EXPLAIN ANALYZE only works with SELECT queries");
+    // Allow SELECT and CTE queries
+    if (!isSelectOrCTE(sqlToExplain)) {
+      toast.error("EXPLAIN ANALYZE only works with SELECT or CTE queries");
       return;
     }
 
@@ -931,8 +938,9 @@ export function useQuery({
       if (!window.electron?.executeQuery) return;
 
       const trimmed = sql.trim().replace(/;\s*$/, "");
-      if (!trimmed.toUpperCase().startsWith("SELECT")) {
-        toast.error("Explain only works with SELECT queries");
+      // Allow SELECT and CTE queries
+      if (!isSelectOrCTE(trimmed)) {
+        toast.error("Explain only works with SELECT or CTE queries");
         return;
       }
 
