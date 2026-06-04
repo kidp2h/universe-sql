@@ -128,7 +128,6 @@ export function DrawerViewComments({
   const handleCopyText = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
-    toast.success("Copied to clipboard!");
     setTimeout(() => setCopiedKey(null), 1800);
   };
 

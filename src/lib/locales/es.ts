@@ -517,6 +517,9 @@ const es = {
   shortcutToggleSidebar: "Alternar barra lateral",
   shortcutToggleTheme: "Cambiar modo oscuro/claro",
   shortcutCommandPalette: "Paleta de comandos",
+  recentQueriesTitle: "Consultas recientes",
+  recentQueriesDesc:
+    "Restaure rápidamente consultas ejecutadas recientemente en su espacio de trabajo.",
   noRecentQueries: "Aún no hay historial de consultas.",
 
   // Dump Database Tool
@@ -550,6 +553,10 @@ const es = {
   postgresOnlyWarning:
     "La función de copia de seguridad de la base de datos actualmente solo admite conexiones PostgreSQL que utilizan pg_dump.",
   restoringYourWorkspace: "Restaurando su espacio de trabajo...",
+  disableGpuLabel: "Desactivar la aceleración por hardware (GPU)",
+  disableGpuDesc:
+    "Desactiva la aceleración por hardware para solucionar problemas relacionados con el rendimiento gráfico.",
+  relaunchApp: "Reiniciar",
 };
 
 export default es;

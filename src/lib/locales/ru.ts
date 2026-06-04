@@ -511,6 +511,9 @@ const ru = {
   shortcutToggleSidebar: "Переключить боковую панель",
   shortcutToggleTheme: "Переключить темную/светлую тему",
   shortcutCommandPalette: "Палитра команд",
+  recentQueriesTitle: "Недавние запросы",
+  recentQueriesDesc:
+    "Быстрое восстановление недавно выполненных запросов в рабочей области.",
   noRecentQueries: "Истории запросов пока нет.",
 
   // Dump Database Tool
@@ -543,6 +546,10 @@ const ru = {
   postgresOnlyWarning:
     "Функция резервного копирования базы данных в настоящее время поддерживает только подключения PostgreSQL, использующие pg_dump.",
   restoringYourWorkspace: "Восстановление вашего рабочего пространства...",
+  disableGpuLabel: "Отключить аппаратное ускорение (GPU)",
+  disableGpuDesc:
+    "Отключите аппаратное ускорение, чтобы решить проблемы с производительностью графики.",
+  relaunchApp: "Перезапустить",
 };
 
 export default ru;

@@ -32,8 +32,10 @@ import { QueryPerformanceProfiler } from "@/components/query/profiler";
 import { cn } from "@/lib/utils";
 import { useTabStore } from "@/stores/tab-store";
 import { useSidebarStore } from "@/stores/sidebar-store";
+import { useShallow } from "zustand/react/shallow";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  EMPTY_RESULT_TABS,
   useQueryResultsStore,
   type ResultTab,
 } from "@/stores/query-results-store";
@@ -649,74 +651,41 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
   );
 });
 
-export const QueryResultsPanel = React.memo(function QueryResultsPanel({
+export const QueryTabResultsContainer = React.memo(function QueryTabResultsContainer({
+  queryTabId,
   isExecuting,
-  queryResult: _ignoredQueryResult,
-  isExplainMode: _ignoredIsExplainMode,
-  executionTime: _ignoredExecutionTime,
   copyText,
   onRunWithoutLimit,
   onCancel,
   onExplainResultTab,
-}: QueryResultsPanelProps) {
+}: {
+  queryTabId: string;
+  isExecuting: boolean;
+  copyText: (text: string) => void | Promise<void>;
+  onRunWithoutLimit?: () => void | Promise<void>;
+  onCancel?: () => void;
+  onExplainResultTab?: (
+    queryTabId: string,
+    resultTabId: string,
+    sql: string,
+  ) => void;
+}) {
   const { t } = useTranslation();
-  const activeQueryTabIdRaw = useTabStore((state) => state.activeQueryTabId);
-  const activeQueryTabId = React.useDeferredValue(activeQueryTabIdRaw);
 
-  const queryTabs = useTabStore((state) => state.queryTabs);
-  const selectedConnectionId = useSidebarStore(
-    (state) => state.selectedConnectionId,
+  const tabResults = useQueryResultsStore(
+    React.useCallback(
+      (state) => state.resultsByTab[queryTabId] ?? EMPTY_RESULT_TABS,
+      [queryTabId],
+    ),
   );
 
-  const [isPending, setIsPending] = React.useState(false);
-
-  const prevActiveTabIdRef = React.useRef(activeQueryTabIdRaw);
-  const prevConnectionIdRef = React.useRef<string | null>(null);
-
-  const activeTab = queryTabs.find((t) => t.id === activeQueryTabIdRaw);
-  const activeConnectionId =
-    activeTab?.connectionId || selectedConnectionId || null;
-
-  React.useEffect(() => {
-    const prevTabId = prevActiveTabIdRef.current;
-    const prevConnectionId = prevConnectionIdRef.current;
-
-    prevActiveTabIdRef.current = activeQueryTabIdRaw;
-    prevConnectionIdRef.current = activeConnectionId;
-
-    if (activeQueryTabIdRaw !== prevTabId) {
-      if (prevConnectionId && activeConnectionId !== prevConnectionId) {
-        setIsPending(true);
-        const timer = setTimeout(() => {
-          setIsPending(false);
-        }, 120);
-        return () => clearTimeout(timer);
-      }
-      setIsPending(false);
-    }
-  }, [activeQueryTabIdRaw, activeConnectionId]);
-
-  const activeTabResultsSelector = React.useCallback(
-    (state: { resultsByTab: Record<string, ResultTab[]> }) =>
-      activeQueryTabId ? state.resultsByTab[activeQueryTabId] : undefined,
-    [activeQueryTabId],
+  const activeResultTabId = useQueryResultsStore(
+    React.useCallback((state) => state.activeResultTabIdByTab[queryTabId], [queryTabId])
   );
-  const activeTabResults = useQueryResultsStore(activeTabResultsSelector) || [];
 
-  const activeResultTabIdSelector = React.useCallback(
-    (state: { activeResultTabIdByTab: Record<string, string | undefined> }) =>
-      activeQueryTabId
-        ? state.activeResultTabIdByTab[activeQueryTabId]
-        : undefined,
-    [activeQueryTabId],
-  );
-  const activeResultTabId = useQueryResultsStore(activeResultTabIdSelector);
-  const effectiveActiveResultTabId =
-    activeResultTabId || activeTabResults[0]?.id;
+  const effectiveActiveResultTabId = activeResultTabId || tabResults[0]?.id;
 
-  const setActiveResultTabId = useQueryResultsStore(
-    (state) => state.setActiveResultTabId,
-  );
+  const setActiveResultTabId = useQueryResultsStore((state) => state.setActiveResultTabId);
   const onRemoveResultTab = useQueryResultsStore((state) => state.removeResult);
   const clearResults = useQueryResultsStore((state) => state.clearResults);
   const updateResult = useQueryResultsStore((state) => state.updateResult);
@@ -744,22 +713,22 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
   const handleSaveRename = React.useCallback(
     (resultTabId: string) => {
       const trimmed = editingName.trim();
-      if (trimmed && activeQueryTabId) {
-        updateResult(activeQueryTabId, resultTabId, { name: trimmed } as any);
+      if (trimmed) {
+        updateResult(queryTabId, resultTabId, { name: trimmed } as any);
       }
       setEditingTabId(null);
     },
-    [editingName, activeQueryTabId, updateResult],
+    [editingName, queryTabId, updateResult],
   );
 
   React.useEffect(() => {
-    if (!activeResultTabId && activeTabResults.length > 0 && activeQueryTabId) {
-      setActiveResultTabId(activeQueryTabId, activeTabResults[0].id);
+    if (!activeResultTabId && tabResults.length > 0) {
+      setActiveResultTabId(queryTabId, tabResults[0].id);
     }
   }, [
     activeResultTabId,
-    activeTabResults,
-    activeQueryTabId,
+    tabResults,
+    queryTabId,
     setActiveResultTabId,
   ]);
 
@@ -774,7 +743,7 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
     [t],
   );
 
-  if ((isExecuting || isPending) && activeTabResults.length === 0) {
+  if (isExecuting && tabResults.length === 0) {
     return (
       <div className="flex h-full w-full items-center justify-center p-4 select-none">
         <div className="flex flex-col items-center gap-4 animate-in fade-in duration-200">
@@ -784,9 +753,9 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
           />
           <div className="flex flex-col items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
-              {isExecuting ? t("executingQuery") : t("switchingConnection")}
+              {t("executingQuery")}
             </span>
-            {isExecuting && onCancel && (
+            {onCancel && (
               <Button
                 variant="outline"
                 size="sm"
@@ -802,7 +771,7 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
     );
   }
 
-  if (activeTabResults.length === 0) {
+  if (tabResults.length === 0) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center select-none">
         <div className="relative mb-6">
@@ -824,12 +793,12 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
   return (
     <Tabs
       value={effectiveActiveResultTabId}
-      onValueChange={(val) => setActiveResultTabId(activeQueryTabId || "", val)}
+      onValueChange={(val) => setActiveResultTabId(queryTabId, val)}
       className="flex h-full flex-col overflow-hidden animate-in fade-in duration-200"
     >
       <div className="flex w-full items-center justify-between border-b px-2 py-1.5 bg-muted/30 shrink-0 select-none overflow-hidden min-h-[38px] gap-2">
         <TabsList className="bg-transparent h-auto p-0 flex flex-row items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-none scroll-smooth flex-1 justify-start rounded-none">
-          {activeTabResults.map((tab) => {
+          {tabResults.map((tab) => {
             const isError = !!tab.queryResult.error;
             const isExplain = tab.isExplainMode;
 
@@ -897,13 +866,13 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
                   aria-label={t("closeTab")}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRemoveResultTab(activeQueryTabId || "", tab.id);
+                    onRemoveResultTab(queryTabId, tab.id);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       e.stopPropagation();
-                      onRemoveResultTab(activeQueryTabId || "", tab.id);
+                      onRemoveResultTab(queryTabId, tab.id);
                     }
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -920,10 +889,8 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
           variant="ghost"
           size="icon"
           onClick={() => {
-            if (activeQueryTabId) {
-              clearResults(activeQueryTabId);
-              toast.success(t("clearedAllResults"));
-            }
+            clearResults(queryTabId);
+            toast.success(t("clearedAllResults"));
           }}
           className="h-7 w-7 text-muted-foreground hover:text-rose-500 rounded-md shrink-0 transition-colors cursor-pointer select-none"
           title={t("closeAllResultTabs")}
@@ -933,7 +900,7 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
       </div>
 
       <div className="flex-1 min-h-0 relative">
-        {(isExecuting || isPending) && (
+        {isExecuting && (
           <div className="absolute inset-0 z-50 flex items-center justify-center p-4 select-none bg-background/60 backdrop-blur-[1px] animate-in fade-in duration-200">
             <div className="flex flex-col items-center gap-4">
               <Loader2
@@ -942,9 +909,9 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
               />
               <div className="flex flex-col items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
-                  {isExecuting ? t("executingQuery") : t("switchingConnection")}
+                  {t("executingQuery")}
                 </span>
-                {isExecuting && onCancel && (
+                {onCancel && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -959,7 +926,7 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
           </div>
         )}
 
-        {activeTabResults.map((tab) => {
+        {tabResults.map((tab) => {
           return (
             <TabsContent
               key={tab.id}
@@ -972,13 +939,108 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
                 copyText={copyText}
                 onRunWithoutLimit={onRunWithoutLimit}
                 onExplainResultTab={onExplainResultTab}
-                activeQueryTabId={activeQueryTabId || ""}
+                activeQueryTabId={queryTabId}
               />
             </TabsContent>
           );
         })}
       </div>
     </Tabs>
+  );
+});
+
+export const QueryResultsPanel = React.memo(function QueryResultsPanel({
+  isExecuting,
+  queryResult: _ignoredQueryResult,
+  isExplainMode: _ignoredIsExplainMode,
+  executionTime: _ignoredExecutionTime,
+  copyText,
+  onRunWithoutLimit,
+  onCancel,
+  onExplainResultTab,
+}: QueryResultsPanelProps) {
+  const { t } = useTranslation();
+  const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
+
+  const queryTabIds = useTabStore(
+    useShallow((state) => state.queryTabs.map((t) => t.id))
+  );
+
+  const selectedConnectionId = useSidebarStore(
+    (state) => state.selectedConnectionId,
+  );
+
+  const [isPending, setIsPending] = React.useState(false);
+
+  const prevActiveTabIdRef = React.useRef(activeQueryTabId);
+  const prevConnectionIdRef = React.useRef<string | null>(null);
+
+  const activeConnectionId = useTabStore((state) => {
+    const activeTab = state.queryTabs.find((t) => t.id === activeQueryTabId);
+    return activeTab?.connectionId || null;
+  }) || selectedConnectionId || null;
+
+  React.useEffect(() => {
+    const prevTabId = prevActiveTabIdRef.current;
+    const prevConnectionId = prevConnectionIdRef.current;
+
+    prevActiveTabIdRef.current = activeQueryTabId;
+    prevConnectionIdRef.current = activeConnectionId;
+
+    if (activeQueryTabId !== prevTabId) {
+      if (prevConnectionId && activeConnectionId !== prevConnectionId) {
+        setIsPending(true);
+        const timer = setTimeout(() => {
+          setIsPending(false);
+        }, 120);
+        return () => clearTimeout(timer);
+      }
+      setIsPending(false);
+    }
+  }, [activeQueryTabId, activeConnectionId]);
+
+  if (isPending) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-4 select-none">
+        <div className="flex flex-col items-center gap-4 animate-in fade-in duration-200">
+          <Loader2
+            className="size-8 animate-spin text-muted-foreground/50"
+            style={{ willChange: "transform" }}
+          />
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
+              {t("switchingConnection")}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full relative">
+      {queryTabIds.map((qTabId) => {
+        const isActive = qTabId === activeQueryTabId;
+        return (
+          <div
+            key={qTabId}
+            className="absolute inset-0"
+            style={{
+              display: isActive ? "block" : "none",
+            }}
+          >
+            <QueryTabResultsContainer
+              queryTabId={qTabId}
+              isExecuting={isActive ? isExecuting : false}
+              copyText={copyText}
+              onRunWithoutLimit={onRunWithoutLimit}
+              onCancel={isActive ? onCancel : undefined}
+              onExplainResultTab={onExplainResultTab}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 });
 

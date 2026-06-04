@@ -508,9 +508,6 @@ export function SettingsPanel() {
                 <SelectItem value="ko" className="text-sm">
                   한국어
                 </SelectItem>
-                <SelectItem value="ko" className="text-sm">
-                  한국어
-                </SelectItem>
                 <SelectItem value="ru" className="text-sm">
                   Русский
                 </SelectItem>

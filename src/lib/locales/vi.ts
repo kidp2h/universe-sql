@@ -520,6 +520,8 @@ const vi = {
   shortcutToggleTheme: "Chuyển chế độ Sáng/Tối",
   shortcutCommandPalette: "Bảng lệnh điều khiển",
   recentQueriesTitle: "Truy vấn gần đây",
+  recentQueriesDesc:
+    "Nhanh chóng khôi phục các truy vấn đã thực thi gần đây vào không gian làm việc của bạn.",
   noRecentQueries: "Chưa có lịch sử truy vấn nào.",
 
   // Dump Database Tool

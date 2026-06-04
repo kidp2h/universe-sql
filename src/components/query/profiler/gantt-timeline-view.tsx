@@ -65,12 +65,12 @@ export function GanttTimelineView({
       </div>
 
       {/* Gantt Timeline Table Container */}
-      <div className="border rounded-2xl bg-muted/5 overflow-x-auto scrollbar-thin">
+      <div className="border rounded-2xl bg-muted/5 overflow-auto max-h-[600px] scrollbar-thin">
         <div className="min-w-[800px] flex flex-col p-4 gap-1.5 font-sans">
           {/* Timeline Time Axis Scale */}
-          <div className="flex items-center text-[9px] font-mono text-muted-foreground select-none border-b pb-1 mb-1">
+          <div className="sticky top-0 bg-background/95 backdrop-blur-xs z-20 flex items-center text-[9px] font-mono text-muted-foreground select-none border-b pb-1.5 mb-1 pt-1.5">
             {/* Label column placeholder */}
-            <div className="w-[300px] shrink-0 font-bold uppercase tracking-wider pl-1">
+            <div className="w-[320px] shrink-0 font-bold uppercase tracking-wider pl-1">
               Operation Tree
             </div>
             {/* Timeline scale tick marks */}
@@ -120,8 +120,8 @@ export function GanttTimelineView({
                 >
                   {/* Left Operation Name Label (indented by tree depth) */}
                   <div
-                    className="w-[300px] shrink-0 flex items-center pr-2 truncate"
-                    style={{ paddingLeft: `${depth * 14 + 6}px` }}
+                    className="w-[320px] shrink-0 flex items-center pr-2 truncate"
+                    style={{ paddingLeft: `${Math.min(120, depth * 8 + 6)}px` }}
                   >
                     <ChevronIndicator depth={depth} />
                     <span className="font-mono text-sm font-semibold text-foreground truncate">

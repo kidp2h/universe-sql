@@ -491,6 +491,8 @@ const ko = {
   shortcutToggleSidebar: "사이드바 토글",
   shortcutToggleTheme: "다크/라이트 모드 전환",
   shortcutCommandPalette: "명령 팔레트",
+  recentQueriesTitle: "최근 쿼리",
+  recentQueriesDesc: "최근에 실행된 쿼리를 작업 공간으로 빠르게 복구합니다.",
   noRecentQueries: "아직 쿼리 실행 내역이 없습니다.",
 
   // Dump Database Tool
@@ -524,6 +526,10 @@ const ko = {
     "현재 데이터베이스 백업 기능은 pg_dump를 사용하는 PostgreSQL 연결만 지원합니다.",
 
   restoringYourWorkspace: "작업 공간을 복원하는 중입니다...",
+  disableGpuLabel: "하드웨어 가속 (GPU) 비활성화",
+  disableGpuDesc:
+    "그래픽 성능 관련 문제를 해결하기 위해 하드웨어 가속을 비활성화합니다.",
+  relaunchApp: "다시 시작",
 };
 
 export default ko;

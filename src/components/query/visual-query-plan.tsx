@@ -10,10 +10,28 @@ import {
   Info,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
+  Maximize,
+  Maximize2,
+  Minimize2,
   Download,
   Image,
 } from "lucide-react";
+import {
+  ReactFlow,
+  Background,
+  Panel,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
+  Handle,
+  Position,
+  MarkerType,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import dagre from "@dagrejs/dagre";
+import { useTheme } from "next-themes";
+
 import {
   Sheet,
   SheetContent,
@@ -50,99 +68,412 @@ interface PlanNode {
   Plans?: PlanNode[];
 }
 
-export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
-  const [selectedNode, setSelectedNode] = React.useState<PlanNode | null>(null);
-  const [zoom, setZoom] = React.useState(1);
-  const [panX, setPanX] = React.useState(0);
-  const [panY, setPanY] = React.useState(0);
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
-  const graphAreaRef = React.useRef<HTMLDivElement>(null);
-  const contentRef = React.useRef<HTMLDivElement>(null);
+const getNodeStyles = (nodeType: string, isHotSpot: boolean) => {
+  const type = nodeType.toLowerCase();
 
-  if (!plan) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground p-8">
-        No query plan data available.
-      </div>
-    );
+  if (isHotSpot) {
+    return {
+      borderColor: "border-destructive/80 dark:border-destructive/60",
+      badgeBg: "bg-destructive/10 text-destructive",
+      badgeText: "HOT SPOT",
+      glow: "shadow-[0_0_15px_rgba(239,68,68,0.2)] dark:shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:shadow-[0_0_25px_rgba(239,68,68,0.45)] dark:hover:shadow-[0_0_30px_rgba(239,68,68,0.35)] transition-shadow duration-200",
+    };
   }
 
-  const rootNode = plan && (plan as any).Plan ? (plan as any).Plan : plan;
+  if (type.includes("index") || type.includes("bitmap")) {
+    return {
+      borderColor: "border-brand/40 dark:border-brand/20",
+      badgeBg: "bg-brand/10 text-brand dark:text-brand/80",
+      badgeText: "Index Scan",
+      glow: "hover:shadow-[0_0_10px_rgba(16,185,129,0.15)]",
+    };
+  }
 
-  // Root total cost used for calculating percentages
+  if (type.includes("scan")) {
+    return {
+      borderColor: "border-amber-500/40 dark:border-amber-500/20",
+      badgeBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+      badgeText: "Table Scan",
+      glow: "hover:shadow-[0_0_10px_rgba(245,158,11,0.15)]",
+    };
+  }
+
+  if (type.includes("join") || type.includes("loop")) {
+    return {
+      borderColor: "border-sky-500/40 dark:border-sky-500/20",
+      badgeBg: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+      badgeText: "Join",
+      glow: "hover:shadow-[0_0_10px_rgba(14,165,233,0.15)]",
+    };
+  }
+
+  return {
+    borderColor: "border-border",
+    badgeBg: "bg-muted text-muted-foreground",
+    badgeText: "Operation",
+    glow: "hover:shadow-[0_0_10px_rgba(100,116,139,0.1)]",
+  };
+};
+
+const renderNodeIcon = (nodeType: string) => {
+  const type = nodeType.toLowerCase();
+  if (type.includes("index")) return <KeyRound className="size-4 shrink-0" />;
+  if (type.includes("scan")) return <Table className="size-4 shrink-0" />;
+  if (type.includes("join") || type.includes("loop"))
+    return <ArrowRightLeft className="size-4 shrink-0" />;
+  return <Info className="size-4 shrink-0" />;
+};
+
+function QueryPlanNode({ data }: { data: any }) {
+  const {
+    node,
+    isHotSpot,
+    costPercent,
+    timePercent,
+    isAnalyze,
+    styles,
+    isFullscreen,
+  } = data;
+
+  return (
+    <div
+      onClick={data.onClick}
+      className={cn(
+        "flex flex-col border rounded-xl bg-card transition-shadow hover:shadow-md cursor-pointer text-left",
+        isFullscreen ? "w-[320px] p-4.5 gap-2.5" : "w-[260px] p-3",
+        styles.borderColor,
+        styles.glow,
+      )}
+    >
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="w-1.5 h-1.5 !bg-border !border-0 opacity-0 pointer-events-none"
+      />
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <span
+          className={cn(
+            "uppercase font-bold tracking-wider opacity-60",
+            isFullscreen ? "text-xs" : "text-sm",
+          )}
+        >
+          {node["Node Type"].split(" ")[0]}
+        </span>
+        <Badge
+          className={cn(
+            "py-0 h-4.5 font-bold border-transparent",
+            isFullscreen ? "text-xs px-2.5" : "text-sm",
+            styles.badgeBg,
+          )}
+        >
+          {styles.badgeText}
+        </Badge>
+      </div>
+
+      {/* Operation Name */}
+      <div
+        className={cn(
+          "flex items-center gap-2 font-mono font-bold text-foreground",
+          isFullscreen ? "text-sm" : "text-xs",
+        )}
+      >
+        {renderNodeIcon(node["Node Type"])}
+        <span className="truncate" title={node["Node Type"]}>
+          {node["Node Type"]}
+        </span>
+      </div>
+
+      {/* Relation Details */}
+      {node["Relation Name"] && (
+        <div
+          className={cn(
+            "text-muted-foreground mt-1 truncate",
+            isFullscreen ? "text-sm" : "text-xs",
+          )}
+        >
+          on{" "}
+          <span className="font-mono font-semibold text-foreground/80">
+            {node["Relation Name"]}
+          </span>
+          {node.Alias && node.Alias !== node["Relation Name"] && (
+            <span> (as {node.Alias})</span>
+          )}
+        </div>
+      )}
+
+      {/* Index details */}
+      {node["Index Name"] && (
+        <div
+          className={cn(
+            "font-mono mt-0.5 truncate",
+            isFullscreen
+              ? "text-sm text-brand/90 dark:text-brand/90"
+              : "text-xs text-brand dark:text-brand/80",
+          )}
+          title={node["Index Name"]}
+        >
+          Idx: {node["Index Name"]}
+        </div>
+      )}
+
+      <div className="border-t my-2 border-border/60" />
+
+      {/* Cost and Time metrics */}
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-1.5 font-mono",
+          isFullscreen ? "text-xs" : "text-xs",
+        )}
+      >
+        <div className="flex flex-col">
+          <span
+            className={cn(
+              "text-muted-foreground uppercase",
+              isFullscreen ? "text-xs" : "text-sm",
+            )}
+          >
+            Cost
+          </span>
+          <span className="font-semibold text-foreground/90 flex items-center gap-0.5">
+            <Coins className="size-3.5 opacity-60" />
+            {node["Total Cost"]}
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span
+            className={cn(
+              "text-muted-foreground uppercase",
+              isFullscreen ? "text-xs" : "text-sm",
+            )}
+          >
+            {isAnalyze ? "Time" : "Est. Rows"}
+          </span>
+          <span className="font-semibold text-foreground/90 flex items-center gap-0.5">
+            {isAnalyze ? (
+              <>
+                <Clock className="size-3.5 opacity-60" />
+                {node["Actual Total Time"]}ms
+              </>
+            ) : (
+              node["Plan Rows"]
+            )}
+          </span>
+        </div>
+      </div>
+
+      {/* Percentage Indicator */}
+      <div
+        className={cn(
+          "mt-2.5 flex items-center justify-between font-mono",
+          isFullscreen ? "text-xs" : "text-sm",
+        )}
+      >
+        <span className="text-muted-foreground">Weight:</span>
+        <span
+          className={cn(
+            "font-bold",
+            isHotSpot ? "text-destructive" : "text-foreground",
+          )}
+        >
+          {isAnalyze
+            ? `${timePercent.toFixed(1)}% time`
+            : `${costPercent.toFixed(1)}% cost`}
+        </span>
+      </div>
+
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-1.5 h-1.5 !bg-border !border-0 opacity-0 pointer-events-none"
+      />
+    </div>
+  );
+}
+
+const nodeTypes = {
+  planNode: QueryPlanNode,
+};
+
+function buildPlanGraphElements(
+  rootNode: PlanNode,
+  rootCost: number,
+  rootTime: number,
+  isAnalyze: boolean,
+  isFullscreen: boolean,
+  onSelectNode: (node: PlanNode) => void,
+) {
+  const nodes: any[] = [];
+  const edges: any[] = [];
+  let nodeIdCounter = 0;
+
+  function traverse(node: PlanNode, parentId?: string) {
+    const currentId = `node-${nodeIdCounter++}`;
+
+    const totalCost = node["Total Cost"] || 0;
+    const totalTime = node["Actual Total Time"] || 0;
+
+    const childrenCost = (node.Plans ?? []).reduce(
+      (acc, p) => acc + (p["Total Cost"] || 0),
+      0,
+    );
+    const childrenTime = (node.Plans ?? []).reduce(
+      (acc, p) => acc + (p["Actual Total Time"] || 0),
+      0,
+    );
+
+    const selfCost = Math.max(0, totalCost - childrenCost);
+    const selfTime = Math.max(0, totalTime - childrenTime);
+
+    const costPercent = (selfCost / rootCost) * 100;
+    const timePercent = isAnalyze ? (selfTime / rootTime) * 100 : 0;
+    const isHotSpot = isAnalyze ? timePercent >= 30 : costPercent >= 30;
+
+    const styles = getNodeStyles(node["Node Type"], isHotSpot);
+
+    nodes.push({
+      id: currentId,
+      type: "planNode",
+      position: { x: 0, y: 0 },
+      data: {
+        node,
+        isHotSpot,
+        costPercent,
+        timePercent,
+        isAnalyze,
+        styles,
+        isFullscreen,
+        onClick: () => onSelectNode(node),
+      },
+    });
+
+    if (parentId) {
+      edges.push({
+        id: `e-${parentId}-${currentId}`,
+        source: parentId,
+        target: currentId,
+        type: "smoothstep",
+        style: { strokeWidth: 2, stroke: "var(--border)" },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 12,
+          height: 12,
+          color: "var(--border)",
+        },
+      });
+    }
+
+    if (node.Plans && node.Plans.length > 0) {
+      for (const childPlan of node.Plans) {
+        traverse(childPlan, currentId);
+      }
+    }
+  }
+
+  traverse(rootNode);
+  return { nodes, edges };
+}
+
+function applyDagreLayout(
+  nodes: any[],
+  edges: any[],
+  nodeWidth = 260,
+  nodeHeight = 160,
+) {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({ rankdir: "TB", ranksep: 80, nodesep: 50 });
+
+  for (const node of nodes) {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  }
+
+  for (const edge of edges) {
+    dagreGraph.setEdge(edge.source, edge.target);
+  }
+
+  dagre.layout(dagreGraph);
+
+  const laidOutNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - nodeWidth / 2,
+        y: nodeWithPosition.y - nodeHeight / 2,
+      },
+    };
+  });
+
+  return laidOutNodes;
+}
+
+function VisualQueryPlanCanvas({
+  plan,
+  isFullscreen,
+  onToggleFullscreen,
+}: {
+  plan: PlanNode;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
+}) {
+  const [selectedNode, setSelectedNode] = React.useState<PlanNode | null>(null);
+  const { fitView, zoomIn, zoomOut } = useReactFlow();
+  const [nodes, setNodes, onNodesChange] = useNodesState<any>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<any>([]);
+  const { theme = "dark" } = useTheme();
+  const isDark = theme === "dark";
+
+  const rootNode = plan && (plan as any).Plan ? (plan as any).Plan : plan;
   const rootCost = rootNode["Total Cost"] || 1;
   const rootTime = rootNode["Actual Total Time"] || 1;
   const isAnalyze = rootNode["Actual Total Time"] !== undefined;
 
-  const treeRef = React.useRef<HTMLDivElement>(null);
-
-  // Handle Ctrl + Wheel zoom
   React.useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey) return;
+    const { nodes: initialNodes, edges: initialEdges } = buildPlanGraphElements(
+      rootNode,
+      rootCost,
+      rootTime,
+      isAnalyze,
+      isFullscreen,
+      setSelectedNode,
+    );
+    const layoutedNodes = applyDagreLayout(
+      initialNodes,
+      initialEdges,
+      isFullscreen ? 320 : 260,
+      isFullscreen ? 195 : 160,
+    );
+    setNodes(layoutedNodes);
+    setEdges(initialEdges);
 
-      e.preventDefault();
-
-      setZoom((prevZoom) => {
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const newZoom = Math.max(0.6, Math.min(1.5, prevZoom + delta));
-        return newZoom;
-      });
-    };
-
-    const graphArea = graphAreaRef.current;
-    if (graphArea) {
-      graphArea.addEventListener("wheel", handleWheel, { passive: false });
-      return () => {
-        graphArea.removeEventListener("wheel", handleWheel);
-      };
-    }
-  }, []);
-
-  // Handle drag to pan
-  React.useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      // Only pan with middle mouse button or Space key + left click
-      if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
-        e.preventDefault();
-        setIsDragging(true);
-        setDragStart({ x: e.clientX - panX, y: e.clientY - panY });
-      }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      setPanX(e.clientX - dragStart.x);
-      setPanY(e.clientY - dragStart.y);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    const graphArea = graphAreaRef.current;
-    if (graphArea) {
-      graphArea.addEventListener("mousedown", handleMouseDown);
-      graphArea.addEventListener("mousemove", handleMouseMove, { passive: false });
-      document.addEventListener("mouseup", handleMouseUp);
-
-      return () => {
-        graphArea.removeEventListener("mousedown", handleMouseDown);
-        graphArea.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [isDragging, dragStart, panX, panY]);
+    const timer = setTimeout(() => {
+      fitView({ padding: 0.15, duration: 400 });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [
+    plan,
+    rootNode,
+    rootCost,
+    rootTime,
+    isAnalyze,
+    isFullscreen,
+    fitView,
+    setNodes,
+    setEdges,
+  ]);
 
   const handleExportPNG = async () => {
-    if (!treeRef.current) return;
+    const viewport = document.querySelector(
+      ".react-flow__viewport",
+    ) as HTMLElement;
+    if (!viewport) return;
 
     const toastId = toast.loading("Generating PNG image...");
     try {
-      const dataUrl = await toPng(treeRef.current, {
-        backgroundColor: "#09090b", // Sleek dark zinc-950 color matching theme
+      const dataUrl = await toPng(viewport, {
+        backgroundColor: "#09090b",
         style: {
           transform: "scale(1)",
           transformOrigin: "top center",
@@ -187,11 +518,14 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
   };
 
   const handleExportSVG = async () => {
-    if (!treeRef.current) return;
+    const viewport = document.querySelector(
+      ".react-flow__viewport",
+    ) as HTMLElement;
+    if (!viewport) return;
 
     const toastId = toast.loading("Generating SVG diagram...");
     try {
-      const dataUrl = await toSvg(treeRef.current, {
+      const dataUrl = await toSvg(viewport, {
         backgroundColor: "#09090b",
         style: {
           transform: "scale(1)",
@@ -245,17 +579,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
     }
   };
 
-  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.1, 1.5));
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.1, 0.6));
-  const handleResetZoom = () => {
-    setZoom(1);
-    setPanX(0);
-    setPanY(0);
-  };
-
-  // Helper to determine self cost of a node (Total Cost - Sum of Children's Total Cost)
   const calculateSelfCostAndType = (node: PlanNode) => {
-    const _nodeType = node["Node Type"];
     const totalCost = node["Total Cost"] || 0;
     const totalTime = node["Actual Total Time"] || 0;
 
@@ -271,308 +595,113 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
     const selfCost = Math.max(0, totalCost - childrenCost);
     const selfTime = Math.max(0, totalTime - childrenTime);
 
-    // Calculate percentage relative to overall execution
     const costPercent = (selfCost / rootCost) * 100;
     const timePercent = isAnalyze ? (selfTime / rootTime) * 100 : 0;
 
-    // A node is a Hot Spot if it represents >30% of total cost (or time, if ANALYZE is present)
     const isHotSpot = isAnalyze ? timePercent >= 30 : costPercent >= 30;
 
     return { selfCost, selfTime, costPercent, timePercent, isHotSpot };
   };
 
-  const getNodeStyles = (nodeType: string, isHotSpot: boolean) => {
-    const type = nodeType.toLowerCase();
-
-    if (isHotSpot) {
-      return {
-        borderColor: "border-destructive/80 dark:border-destructive/60",
-        badgeBg: "bg-destructive/10 text-destructive",
-        badgeText: "HOT SPOT",
-        glow: "shadow-[0_0_15px_rgba(239,68,68,0.2)] dark:shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:shadow-[0_0_25px_rgba(239,68,68,0.45)] dark:hover:shadow-[0_0_30px_rgba(239,68,68,0.35)] transition-shadow duration-200",
-      };
-    }
-
-    if (type.includes("index") || type.includes("bitmap")) {
-      return {
-        borderColor: "border-brand/40 dark:border-brand/20",
-        badgeBg: "bg-brand/10 text-brand dark:text-brand/80",
-        badgeText: "Index Scan",
-        glow: "hover:shadow-[0_0_10px_rgba(16,185,129,0.15)]",
-      };
-    }
-
-    if (type.includes("scan")) {
-      return {
-        borderColor: "border-amber-500/40 dark:border-amber-500/20",
-        badgeBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-        badgeText: "Table Scan",
-        glow: "hover:shadow-[0_0_10px_rgba(245,158,11,0.15)]",
-      };
-    }
-
-    if (type.includes("join") || type.includes("loop")) {
-      return {
-        borderColor: "border-sky-500/40 dark:border-sky-500/20",
-        badgeBg: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-        badgeText: "Join",
-        glow: "hover:shadow-[0_0_10px_rgba(14,165,233,0.15)]",
-      };
-    }
-
-    return {
-      borderColor: "border-border",
-      badgeBg: "bg-muted text-muted-foreground",
-      badgeText: "Operation",
-      glow: "hover:shadow-[0_0_10px_rgba(100,116,139,0.1)]",
-    };
-  };
-
-  const renderNodeIcon = (nodeType: string) => {
-    const type = nodeType.toLowerCase();
-    if (type.includes("index")) return <KeyRound className="size-4 shrink-0" />;
-    if (type.includes("scan")) return <Table className="size-4 shrink-0" />;
-    if (type.includes("join") || type.includes("loop"))
-      return <ArrowRightLeft className="size-4 shrink-0" />;
-    return <Info className="size-4 shrink-0" />;
-  };
-
-  const renderPlanTree = (node: PlanNode): React.ReactNode => {
-    const { costPercent, timePercent, isHotSpot } =
-      calculateSelfCostAndType(node);
-    const styles = getNodeStyles(node["Node Type"], isHotSpot);
-
-    return (
-      <div className="flex flex-col items-center select-none">
-        {/* Node Card */}
-        <div
-          onClick={() => setSelectedNode(node)}
-          className={cn(
-            "flex flex-col w-[260px] p-3 border rounded-xl bg-card/60 backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer",
-            styles.borderColor,
-            styles.glow,
-          )}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase font-bold tracking-wider opacity-60">
-              {node["Node Type"].split(" ")[0]}
-            </span>
-            <Badge
-              className={cn(
-                "text-[9px] py-0 h-4 font-bold border-transparent",
-                styles.badgeBg,
-              )}
-            >
-              {styles.badgeText}
-            </Badge>
-          </div>
-
-          {/* Operation Name */}
-          <div className="flex items-center gap-2 font-mono text-[12.5px] font-bold text-foreground">
-            {renderNodeIcon(node["Node Type"])}
-            <span className="truncate" title={node["Node Type"]}>
-              {node["Node Type"]}
-            </span>
-          </div>
-
-          {/* Relation Details */}
-          {node["Relation Name"] && (
-            <div className="text-[11px] text-muted-foreground mt-1 truncate">
-              on{" "}
-              <span className="font-mono font-semibold text-foreground/80">
-                {node["Relation Name"]}
-              </span>
-              {node.Alias && node.Alias !== node["Relation Name"] && (
-                <span> (as {node.Alias})</span>
-              )}
-            </div>
-          )}
-
-          {/* Index details */}
-          {node["Index Name"] && (
-            <div
-              className="text-xs text-brand dark:text-brand/80 font-mono mt-0.5 truncate"
-              title={node["Index Name"]}
-            >
-              Idx: {node["Index Name"]}
-            </div>
-          )}
-
-          <div className="border-t my-2 border-border/60" />
-
-          {/* Cost and Time metrics */}
-          <div className="grid grid-cols-2 gap-1.5 font-mono text-[11px]">
-            <div className="flex flex-col">
-              <span className="text-[9px] text-muted-foreground uppercase">
-                Cost
-              </span>
-              <span className="font-semibold text-foreground/90 flex items-center gap-0.5">
-                <Coins className="size-3 opacity-60" />
-                {node["Total Cost"]}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] text-muted-foreground uppercase">
-                {isAnalyze ? "Time" : "Est. Rows"}
-              </span>
-              <span className="font-semibold text-foreground/90 flex items-center gap-0.5">
-                {isAnalyze ? (
-                  <>
-                    <Clock className="size-3 opacity-60" />
-                    {node["Actual Total Time"]}ms
-                  </>
-                ) : (
-                  node["Plan Rows"]
-                )}
-              </span>
-            </div>
-          </div>
-
-          {/* Percentage Indicator */}
-          <div className="mt-2.5 flex items-center justify-between text-[9.5px] font-mono">
-            <span className="text-muted-foreground">Weight:</span>
-            <span
-              className={cn(
-                "font-bold",
-                isHotSpot ? "text-destructive" : "text-foreground",
-              )}
-            >
-              {isAnalyze
-                ? `${timePercent.toFixed(1)}% time`
-                : `${costPercent.toFixed(1)}% cost`}
-            </span>
-          </div>
-        </div>
-
-        {/* Connector Line & Sub Plans */}
-        {node.Plans && node.Plans.length > 0 && (
-          <div className="flex flex-col items-center mt-6 w-full">
-            {/* Vertical connector line directly below parent card */}
-            <div className="w-[2px] h-6 bg-border/80" />
-
-            {/* Horizontal bridge bar connecting all sub plans */}
-            {node.Plans.length > 1 && (
-              <div
-                className="h-[2px] bg-border/80 w-full flex relative"
-                style={{ width: `calc(100% - ${260 / node.Plans.length}px)` }}
-              />
-            )}
-
-            {/* Render children sub plans side-by-side */}
-            <div className="flex gap-8 justify-center w-full">
-              {node.Plans.map((subPlan, idx) => {
-                const subCost = subPlan["Total Cost"] || 0;
-                const subTime = subPlan["Actual Total Time"] || 0;
-                const _isSubHot = isAnalyze
-                  ? subTime / rootTime >= 0.3
-                  : subCost / rootCost >= 0.3;
-                return (
-                  <div
-                    key={idx}
-                    className="flex flex-col items-center relative"
-                  >
-                    {/* Vertical connector lines connecting horizontal bridge to child card */}
-                    <div className="w-[2px] h-6 bg-border/80" />
-                    {renderPlanTree(subPlan)}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <div className="relative flex flex-col h-full overflow-hidden select-none bg-background/20 rounded-xl border">
-      {/* Zoom and Pan Controls */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-card/75 border border-border/80 p-1.5 rounded-full shadow-sm backdrop-blur-md">
-        <button
-          onClick={handleZoomOut}
-          disabled={zoom <= 0.6}
-          className="p-1 rounded-full hover:bg-accent hover:text-accent-foreground text-muted-foreground disabled:opacity-40 transition-colors"
-          title="Zoom Out (Ctrl + Scroll)"
-        >
-          <ZoomOut className="size-4" />
-        </button>
-        <span className="text-xs font-mono font-bold px-1 select-none min-w-[36px] text-center">
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
-          onClick={handleZoomIn}
-          disabled={zoom >= 1.5}
-          className="p-1 rounded-full hover:bg-accent hover:text-accent-foreground text-muted-foreground disabled:opacity-40 transition-colors"
-          title="Zoom In (Ctrl + Scroll)"
-        >
-          <ZoomIn className="size-4" />
-        </button>
-        <div className="w-[1px] h-4 bg-border mx-1" />
-        <button
-          onClick={handleResetZoom}
-          className="p-1 rounded-full hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
-          title="Reset Zoom & Pan"
-        >
-          <RotateCcw className="size-4" />
-        </button>
-        <div className="w-[1px] h-4 bg-border mx-1" />
-        <button
-          onClick={handleExportPNG}
-          className="p-1 rounded-full hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
-          title="Export as PNG Image"
-        >
-          <Image className="size-4" />
-        </button>
-        <button
-          onClick={handleExportSVG}
-          className="p-1 rounded-full hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
-          title="Export as SVG Diagram"
-        >
-          <Download className="size-4" />
-        </button>
-      </div>
-
-      {/* Interactive Legend Badge */}
-      <div className="absolute top-4 right-4 z-10 flex gap-2 text-[9px] bg-card/75 border border-border/80 py-1.5 px-3 rounded-full backdrop-blur-md text-muted-foreground font-mono">
-        <span className="flex items-center gap-1 font-semibold">
-          <span className="size-2 bg-brand rounded-full" /> Index Scan
-        </span>
-        <span className="flex items-center gap-1 font-semibold">
-          <span className="size-2 bg-amber-500 rounded-full" /> Table Scan
-        </span>
-        <span className="flex items-center gap-1 font-semibold">
-          <span className="size-2 bg-destructive rounded-full" /> Hot Spot
-        </span>
-      </div>
-
-      {/* Pan Hint */}
-      <div className="absolute bottom-4 left-4 z-10 text-[9px] bg-card/75 border border-border/80 py-1.5 px-3 rounded-full backdrop-blur-md text-muted-foreground font-mono">
-        <span className="flex items-center gap-1.5 font-semibold">
-          <span className="inline-block">Shift + Drag</span>
-          <span className="text-border/60">|</span>
-          <span className="inline-block">Middle Mouse</span>
-        </span>
-      </div>
-
-      {/* Main Graph Area */}
-      <div
-        ref={graphAreaRef}
-        className={cn(
-          "flex-1 overflow-auto p-12 flex justify-center items-start min-w-0",
-          isDragging ? "cursor-grabbing" : "cursor-grab",
-        )}
+    <div
+      className="w-full h-full relative"
+      style={
+        {
+          "--xy-background-color": "var(--background)",
+          "--xy-node-color": "var(--foreground)",
+          "--xy-edge-stroke": "var(--border)",
+          "--xy-minimap-background-color": "var(--card)",
+          "--xy-minimap-mask-color": isDark
+            ? "rgba(0,0,0,0.6)"
+            : "rgba(255,255,255,0.6)",
+        } as any
+      }
+    >
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        colorMode={isDark ? "dark" : "light"}
+        fitView
+        fitViewOptions={{ padding: 0.15 }}
+        minZoom={0.2}
+        maxZoom={1.5}
+        deleteKeyCode={null}
       >
-        <div
-          ref={contentRef}
-          className="transition-transform duration-200 ease-out origin-top flex flex-col items-center p-6 rounded-2xl"
-          style={{
-            transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
-          }}
-        >
-          <div ref={treeRef}>{renderPlanTree(rootNode)}</div>
-        </div>
-      </div>
+        <Background gap={24} size={2} color="var(--border)" />
+
+        {/* Floating Zoom & Export Toolbar */}
+        <Panel position="top-left" className="m-4 z-10">
+          <div className="flex items-center gap-1 bg-card/90 border border-border/80 p-1.5 rounded-xl shadow-lg backdrop-blur-md">
+            <button
+              onClick={() => zoomOut()}
+              className="p-1 rounded-lg hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors cursor-pointer"
+              title="Zoom Out"
+            >
+              <ZoomOut className="size-4" />
+            </button>
+            <button
+              onClick={() => zoomIn()}
+              className="p-1 rounded-lg hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors cursor-pointer"
+              title="Zoom In"
+            >
+              <ZoomIn className="size-4" />
+            </button>
+            <div className="w-[1px] h-4 bg-border mx-1" />
+            <button
+              onClick={() => fitView({ padding: 0.15, duration: 400 })}
+              className="p-1 rounded-lg hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors cursor-pointer"
+              title="Reset Zoom & Fit View"
+            >
+              <Maximize className="size-4" />
+            </button>
+            <button
+              onClick={onToggleFullscreen}
+              className="p-1 rounded-lg hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors cursor-pointer"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen View"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="size-4" />
+              ) : (
+                <Maximize2 className="size-4" />
+              )}
+            </button>
+            <div className="w-[1px] h-4 bg-border mx-1" />
+            <button
+              onClick={handleExportPNG}
+              className="p-1 rounded-lg hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors cursor-pointer"
+              title="Export as PNG Image"
+            >
+              <Image className="size-4" />
+            </button>
+            <button
+              onClick={handleExportSVG}
+              className="p-1 rounded-lg hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors cursor-pointer"
+              title="Export as SVG Diagram"
+            >
+              <Download className="size-4" />
+            </button>
+          </div>
+        </Panel>
+
+        {/* Legend Panel */}
+        <Panel position="top-right" className="m-4 z-10">
+          <div className="flex gap-2 text-xs bg-card/90 border border-border/80 py-1.5 px-3 rounded-full backdrop-blur-md text-muted-foreground font-mono shadow-md">
+            <span className="flex items-center gap-1 font-semibold">
+              <span className="size-2 bg-brand rounded-full" /> Index Scan
+            </span>
+            <span className="flex items-center gap-1 font-semibold">
+              <span className="size-2 bg-amber-500 rounded-full" /> Table Scan
+            </span>
+            <span className="flex items-center gap-1 font-semibold">
+              <span className="size-2 bg-destructive rounded-full" /> Hot Spot
+            </span>
+          </div>
+        </Panel>
+      </ReactFlow>
 
       {/* Node Details Inspector Drawer */}
       <Sheet
@@ -701,7 +830,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
                         <span className="text-[9.5px] font-mono text-muted-foreground uppercase font-bold block mb-1">
                           Index Condition
                         </span>
-                        <code className="text-foreground/90 font-mono break-all">
+                        <code className="text-foreground/90 font-mono break-all text-xs">
                           {selectedNode["Index Cond"]}
                         </code>
                       </div>
@@ -711,7 +840,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
                         <span className="text-[9.5px] font-mono text-sky-500 uppercase font-bold block mb-1">
                           Hash Join Condition
                         </span>
-                        <code className="text-foreground/90 font-mono break-all">
+                        <code className="text-foreground/90 font-mono break-all text-xs">
                           {selectedNode["Hash Cond"]}
                         </code>
                       </div>
@@ -721,7 +850,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
                         <span className="text-[9.5px] font-mono text-red-500 uppercase font-bold block mb-1">
                           Filter (Sequential Scan)
                         </span>
-                        <code className="text-foreground/90 font-mono break-all">
+                        <code className="text-foreground/90 font-mono break-all text-xs">
                           {selectedNode.Filter}
                         </code>
                       </div>
@@ -731,7 +860,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
                         <span className="text-[9.5px] font-mono text-muted-foreground uppercase font-bold block mb-1">
                           Join Filter
                         </span>
-                        <code className="text-foreground/90 font-mono break-all">
+                        <code className="text-foreground/90 font-mono break-all text-xs">
                           {selectedNode["Join Filter"]}
                         </code>
                       </div>
@@ -741,7 +870,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
                         <span className="text-[9.5px] font-mono text-muted-foreground uppercase font-bold block mb-1">
                           Recheck Condition
                         </span>
-                        <code className="text-foreground/90 font-mono break-all">
+                        <code className="text-foreground/90 font-mono break-all text-xs">
                           {selectedNode["Recheck Cond"]}
                         </code>
                       </div>
@@ -751,7 +880,7 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
                         <span className="text-[9.5px] font-mono text-muted-foreground uppercase font-bold block mb-1">
                           Merge Condition
                         </span>
-                        <code className="text-foreground/90 font-mono break-all">
+                        <code className="text-foreground/90 font-mono break-all text-xs">
                           {selectedNode["Merge Cond"]}
                         </code>
                       </div>
@@ -866,6 +995,50 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
           )}
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isFullscreen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsFullscreen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreen]);
+
+  if (!plan) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground p-8">
+        No query plan data available.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl overflow-hidden border bg-background",
+        isFullscreen
+          ? "fixed inset-0 z-40 w-screen h-screen"
+          : "w-full h-full relative",
+      )}
+    >
+      <ReactFlowProvider>
+        <VisualQueryPlanCanvas
+          plan={plan}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={() => setIsFullscreen((f) => !f)}
+        />
+      </ReactFlowProvider>
     </div>
   );
 }

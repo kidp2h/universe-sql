@@ -4,6 +4,7 @@ import { CommandGroup } from "@/components/ui/command";
 import { AppCommandItem as CommandItem } from "./app-command-item";
 import { useGlobalEvents } from "@/hooks/use-global-events";
 import { Shortcut } from "../ui/kbd";
+import { useTabStore } from "@/stores/tab-store";
 
 interface BaseCommandGroupProps {
   setOpen: (open: boolean) => void;
@@ -12,9 +13,16 @@ interface BaseCommandGroupProps {
 export function RunCommandGroup({ setOpen }: BaseCommandGroupProps) {
   const { t } = useTranslation();
   const { dispatchCommand } = useGlobalEvents();
+  const queryTabs = useTabStore((state) => state.queryTabs);
+  const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
+  const activeTab = queryTabs.find((t) => t.id === activeQueryTabId);
+  const isQueryTabActive =
+    !!activeTab && (!activeTab.type || activeTab.type === "sql");
+
   return (
     <CommandGroup heading={t("menuRun")}>
       <CommandItem
+        disabled={!isQueryTabActive}
         setOpen={setOpen}
         onSelect={() => {
           dispatchCommand("execute");
@@ -25,6 +33,7 @@ export function RunCommandGroup({ setOpen }: BaseCommandGroupProps) {
         <Shortcut shortcut="⌘ + Enter" />
       </CommandItem>
       <CommandItem
+        disabled={!isQueryTabActive}
         setOpen={setOpen}
         onSelect={() => {
           dispatchCommand("explain");

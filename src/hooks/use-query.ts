@@ -2,10 +2,12 @@ import * as React from "react";
 import { parse } from "pgsql-ast-parser";
 import { toast } from "sonner";
 import { useTabStore } from "@/stores/tab-store";
+import { useShallow } from "zustand/react/shallow";
 import { logger } from "@/lib/logger";
 import { useQueryHistoryStore } from "@/stores/query-history-store";
 import { useQueryCommands } from "./use-query-commands";
 import {
+  EMPTY_RESULT_TABS,
   useQueryResultsStore,
   type ResultTab,
 } from "@/stores/query-results-store";
@@ -59,7 +61,7 @@ export function useQuery({
   isEditorFocused: _isEditorFocused,
   enableCommands = true,
 }: UseQueryProps) {
-  const queryTabs = useTabStore((state) => state.queryTabs);
+  // queryTabs subscription removed to prevent re-renders on keystroke
   const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
   const { connections, activeConnection, updateSelectedConnectionId } =
     useConnection();
@@ -68,7 +70,8 @@ export function useQuery({
       activeQueryTabId ? state.resultsByTab[activeQueryTabId] : undefined,
     [activeQueryTabId],
   );
-  const activeTabResults = useQueryResultsStore(activeTabResultsSelector) || [];
+  const activeTabResults =
+    useQueryResultsStore(activeTabResultsSelector) ?? EMPTY_RESULT_TABS;
 
   const activeResultTabIdSelector = React.useCallback(
     (state: { activeResultTabIdByTab: Record<string, string | undefined> }) =>
@@ -109,13 +112,38 @@ export function useQuery({
   >(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  const activeTab = React.useMemo(() => {
-    const found = queryTabs.find((tab) => tab.id === activeQueryTabId);
-    if (found) return found;
-
-    // Fallback to the first visible SQL tab if activeQueryTabId is not set or not found
-    return queryTabs.find((tab) => !tab.type || tab.type === "sql");
-  }, [activeQueryTabId, queryTabs]);
+  const activeTab = useTabStore(
+    useShallow((state) => {
+      const activeTabId = state.activeQueryTabId;
+      const found = state.queryTabs.find((tab) => tab.id === activeTabId);
+      if (found) {
+        return {
+          id: found.id,
+          title: found.title,
+          icon: found.icon,
+          connectionId: found.connectionId,
+          type: found.type,
+          filePath: found.filePath,
+          savedSql: found.savedSql,
+        };
+      }
+      const fallback = state.queryTabs.find(
+        (tab) => !tab.type || tab.type === "sql",
+      );
+      if (fallback) {
+        return {
+          id: fallback.id,
+          title: fallback.title,
+          icon: fallback.icon,
+          connectionId: fallback.connectionId,
+          type: fallback.type,
+          filePath: fallback.filePath,
+          savedSql: fallback.savedSql,
+        };
+      }
+      return undefined;
+    }),
+  );
 
   const activeTabConnection = React.useMemo(() => {
     if (activeTab?.connectionId) {
@@ -146,11 +174,16 @@ export function useQuery({
   const isAutoSaveEnabled = useTabStore((state) => state.isAutoSaveEnabled);
 
   const formatSQL = React.useCallback(async () => {
-    if (!activeTab?.sql) return;
+    const store = useTabStore.getState();
+    const currentActiveTab =
+      store.queryTabs.find((tab) => tab.id === activeQueryTabId) ||
+      store.queryTabs.find((tab) => !tab.type || tab.type === "sql");
+
+    if (!currentActiveTab?.sql) return;
 
     try {
       const { format } = await import("sql-formatter");
-      const formatted = format(activeTab.sql, {
+      const formatted = format(currentActiveTab.sql, {
         language: "postgresql",
         tabWidth: 2,
         keywordCase: "upper",
@@ -160,7 +193,7 @@ export function useQuery({
     } catch (error) {
       console.error("Failed to format SQL:", error);
     }
-  }, [activeTab, setQuerySql]);
+  }, [activeQueryTabId, setQuerySql]);
 
   const copyText = React.useCallback(async (text: string) => {
     try {
@@ -182,12 +215,22 @@ export function useQuery({
   }, []);
 
   const copySQL = React.useCallback(async () => {
-    if (!activeTab?.sql) return;
-    await copyText(activeTab.sql);
-  }, [activeTab?.sql, copyText]);
+    const store = useTabStore.getState();
+    const currentActiveTab =
+      store.queryTabs.find((tab) => tab.id === activeQueryTabId) ||
+      store.queryTabs.find((tab) => !tab.type || tab.type === "sql");
+
+    if (!currentActiveTab?.sql) return;
+    await copyText(currentActiveTab.sql);
+  }, [activeQueryTabId, copyText]);
 
   const saveAsSQL = React.useCallback(async () => {
-    if (!activeTab?.sql) {
+    const store = useTabStore.getState();
+    const currentActiveTab =
+      store.queryTabs.find((tab) => tab.id === activeQueryTabId) ||
+      store.queryTabs.find((tab) => !tab.type || tab.type === "sql");
+
+    if (!currentActiveTab?.sql) {
       return;
     }
 
@@ -196,22 +239,22 @@ export function useQuery({
       return;
     }
 
-    const suggestedName = `${activeTab.title || "query"}.sql`;
+    const suggestedName = `${currentActiveTab.title || "query"}.sql`;
     const result = await window.electron.saveQuery({
-      content: activeTab.sql,
+      content: currentActiveTab.sql,
       suggestedName,
-      filePath: activeTab.filePath,
+      filePath: currentActiveTab.filePath,
       forceDialog: true,
     });
 
     if (result.ok && !result.canceled) {
-      setQuerySaved(activeTab.sql);
+      setQuerySaved(currentActiveTab.sql);
       if (result.filePath) {
         const filePath = result.filePath;
         setQueryFilePath(filePath);
         const name = filePath.split(/[/\\]/).pop()?.trim();
         if (name) {
-          setQueryTitle(activeTab.id, name);
+          setQueryTitle(currentActiveTab.id, name);
         }
 
         // Record path in sidebar store
@@ -226,7 +269,7 @@ export function useQuery({
       alert(result.message || "Save failed");
     }
   }, [
-    activeTab,
+    activeQueryTabId,
     setQueryFilePath,
     setQuerySaved,
     setQueryTitle,
@@ -234,7 +277,12 @@ export function useQuery({
   ]);
 
   const saveSQL = React.useCallback(async () => {
-    if (!activeTab?.sql || !activeTabConnection) {
+    const store = useTabStore.getState();
+    const currentActiveTab =
+      store.queryTabs.find((tab) => tab.id === activeQueryTabId) ||
+      store.queryTabs.find((tab) => !tab.type || tab.type === "sql");
+
+    if (!currentActiveTab?.sql || !activeTabConnection) {
       return;
     }
 
@@ -243,20 +291,20 @@ export function useQuery({
       return;
     }
 
-    if (!activeTab.filePath) {
+    if (!currentActiveTab.filePath) {
       await saveAsSQL();
       return;
     }
 
-    const suggestedName = `${activeTab.title || "query"}.sql`;
+    const suggestedName = `${currentActiveTab.title || "query"}.sql`;
     const result = await window.electron.saveQuery({
-      content: activeTab.sql,
+      content: currentActiveTab.sql,
       suggestedName,
-      filePath: activeTab.filePath,
+      filePath: currentActiveTab.filePath,
     });
 
     if (result.ok && !result.canceled) {
-      setQuerySaved(activeTab.sql);
+      setQuerySaved(currentActiveTab.sql);
       if (result.filePath) {
         setQueryFilePath(result.filePath);
 
@@ -272,7 +320,7 @@ export function useQuery({
       alert(result.message || "Save failed");
     }
   }, [
-    activeTab,
+    activeQueryTabId,
     saveAsSQL,
     setQueryFilePath,
     setQuerySaved,
@@ -370,10 +418,15 @@ export function useQuery({
 
   const executeQuery = React.useCallback(
     async (overrideSql?: string, skipConfirm = false, bypassLimit = false) => {
+      const store = useTabStore.getState();
+      const currentActiveTab =
+        store.queryTabs.find((tab) => tab.id === activeQueryTabId) ||
+        store.queryTabs.find((tab) => !tab.type || tab.type === "sql");
+
       if (
-        !activeTab ||
+        !currentActiveTab ||
         !activeTabConnection ||
-        !(overrideSql || activeTab.sql).trim()
+        !(overrideSql || currentActiveTab.sql).trim()
       ) {
         return;
       }
@@ -383,12 +436,12 @@ export function useQuery({
         return;
       }
 
-      const sqlToExecuteRaw = overrideSql || activeTab.sql;
+      const sqlToExecuteRaw = overrideSql || currentActiveTab.sql;
       logger.log(
         `[Query] Initiating execution on connection: "${activeTabConnection.name}". Raw SQL length: ${sqlToExecuteRaw.length} characters.`,
       );
 
-      let sqlToExecute = overrideSql || activeTab.sql;
+      let sqlToExecute = overrideSql || currentActiveTab.sql;
       if (!overrideSql && getSelectedTextRef.current) {
         const selectedText = getSelectedTextRef.current();
         if (selectedText?.text?.trim()) {
@@ -714,7 +767,7 @@ export function useQuery({
             error: errorMsg,
           });
 
-          useQueryResultsStore.getState().addResult(activeTab.id, {
+          useQueryResultsStore.getState().addResult(currentActiveTab.id, {
             queryResult: {
               columns: [],
               rows: [],
@@ -758,7 +811,7 @@ export function useQuery({
           duration: elapsed,
         });
 
-        useQueryResultsStore.getState().addResult(activeTab.id, {
+        useQueryResultsStore.getState().addResult(currentActiveTab.id, {
           queryResult: {
             columns,
             rows,
@@ -789,14 +842,19 @@ export function useQuery({
         }
       }
     },
-    [activeTabConnection, activeTab],
+    [activeTabConnection, activeQueryTabId],
   );
 
   const explainAnalyzeQuery = React.useCallback(async () => {
-    if (!activeTab || !activeTabConnection || !activeTab.sql.trim()) {
+    const store = useTabStore.getState();
+    const currentActiveTab =
+      store.queryTabs.find((tab) => tab.id === activeQueryTabId) ||
+      store.queryTabs.find((tab) => !tab.type || tab.type === "sql");
+
+    if (!currentActiveTab || !activeTabConnection || !currentActiveTab.sql.trim()) {
       return;
     }
-    let sqlToExplain = activeTab.sql.trim();
+    let sqlToExplain = currentActiveTab.sql.trim();
     if (getSelectedTextRef.current) {
       const selectedText = getSelectedTextRef.current();
       if (selectedText?.text?.trim()) {
@@ -864,7 +922,7 @@ export function useQuery({
           error: errorMsg,
         });
 
-        useQueryResultsStore.getState().addResult(activeTab.id, {
+        useQueryResultsStore.getState().addResult(currentActiveTab.id, {
           queryResult: {
             columns: [],
             rows: [],
@@ -907,7 +965,7 @@ export function useQuery({
         duration: elapsed,
       });
 
-      useQueryResultsStore.getState().addResult(activeTab.id, {
+      useQueryResultsStore.getState().addResult(currentActiveTab.id, {
         queryResult: {
           columns,
           rows,
@@ -930,7 +988,7 @@ export function useQuery({
     } finally {
       setIsExecuting(false);
     }
-  }, [activeTabConnection, activeTab]);
+  }, [activeTabConnection, activeQueryTabId]);
 
   const explainResultTab = React.useCallback(
     async (queryTabId: string, resultTabId: string, sql: string) => {
@@ -1017,12 +1075,12 @@ export function useQuery({
 
   const cancelQuery = React.useCallback(() => {
     setIsExecuting(false);
-    if (activeTab) {
-      useQueryResultsStore.getState().clearResults(activeTab.id);
+    if (activeQueryTabId) {
+      useQueryResultsStore.getState().clearResults(activeQueryTabId);
     }
     toast.info("Query execution cancelled");
     logger.log("[Query] Execution cancelled by the user.");
-  }, [activeTab]);
+  }, [activeQueryTabId]);
 
   const newQueryWithContext = React.useCallback(
     (context: { connectionId: string; connectionName: string }) => {
@@ -1056,29 +1114,45 @@ export function useQuery({
     enableCommands,
   );
 
-  // Auto-save logic
+  // Auto-save logic using store subscription to avoid React re-renders on every keystroke
   React.useEffect(() => {
-    if (
-      !isAutoSaveEnabled ||
-      !activeTab?.filePath ||
-      !activeTab?.sql ||
-      activeTab.sql === activeTab.savedSql
-    ) {
+    if (!isAutoSaveEnabled) {
       return;
     }
 
-    const timer = setTimeout(() => {
-      saveSQL();
-    }, 2000);
+    let timer: any = null;
 
-    return () => clearTimeout(timer);
-  }, [
-    activeTab?.sql,
-    activeTab?.filePath,
-    activeTab?.savedSql,
-    isAutoSaveEnabled,
-    saveSQL,
-  ]);
+    const unsubscribe = useTabStore.subscribe((state) => {
+      const activeTabId = state.activeQueryTabId;
+      const currentActiveTab = state.queryTabs.find((t) => t.id === activeTabId);
+
+      if (
+        !currentActiveTab?.filePath ||
+        !currentActiveTab?.sql ||
+        currentActiveTab.sql === currentActiveTab.savedSql
+      ) {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        return;
+      }
+
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        void saveSQL();
+      }, 2000);
+    });
+
+    return () => {
+      unsubscribe();
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [isAutoSaveEnabled, saveSQL]);
 
   return {
     queryResult,

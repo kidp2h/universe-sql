@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useDebouncedCallback } from "./use-typing-optimization";
+import { useDebouncedCallback } from "@/hooks/use-typing-optimization";
 
 /**
  * Enhanced CodeMirror editor wrapper with typing performance optimizations
@@ -80,7 +80,17 @@ export const OptimizedSqlEditor = React.memo(
           searchKeymap: true,
         },
       }),
-      [value, handleChange, handleBlur, extensions, theme, height, className, readOnly, placeholder],
+      [
+        value,
+        handleChange,
+        handleBlur,
+        extensions,
+        theme,
+        height,
+        className,
+        readOnly,
+        placeholder,
+      ],
     );
 
     // Dynamic import to reduce initial bundle size

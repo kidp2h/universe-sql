@@ -44,12 +44,12 @@ export function FlameGraphNode({
   if (pctIncl < 0.1) return null;
 
   return (
-    <div className="flex flex-col min-w-0" style={{ width: `${widthPct}%` }}>
+    <div className="flex flex-col min-w-max" style={{ width: `${widthPct}%` }}>
       {/* Node Button */}
       <div
         onClick={() => onSelect(node)}
         className={cn(
-          "h-10 px-2 py-1 rounded-lg border text-left cursor-pointer flex flex-col justify-center min-w-0 transition-all duration-200 select-none",
+          "h-10 px-2 py-1 rounded-lg border text-left cursor-pointer flex flex-col justify-center min-w-[120px] w-full transition-all duration-200 select-none",
           heatBg,
           isSelected
             ? "ring-2 ring-indigo-500 border-indigo-500 !bg-indigo-500/20 !text-indigo-600 dark:!text-indigo-100"
@@ -128,7 +128,7 @@ export function FlameGraphView({
 
       {/* Main Canvas Scrollable Wrapper */}
       <div className="w-full overflow-x-auto p-4 border rounded-2xl bg-muted/5 min-h-[320px] scrollbar-thin">
-        <div className="min-w-[950px] flex flex-col gap-1">
+        <div className="w-max min-w-full flex flex-col gap-1">
           <FlameGraphNode
             node={rootNode}
             onSelect={onSelect}

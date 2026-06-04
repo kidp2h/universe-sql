@@ -500,6 +500,9 @@ const ja = {
   shortcutToggleSidebar: "サイドバーの表示切り替え",
   shortcutToggleTheme: "ダーク/ライトモードの切り替え",
   shortcutCommandPalette: "コマンドパレット",
+  recentQueriesTitle: "最近のクエリ",
+  recentQueriesDesc:
+    "最近実行されたクエリをワークスペースにすばやく復元します。",
   noRecentQueries: "クエリ履歴はまだありません。",
 
   // Dump Database Tool
@@ -532,6 +535,10 @@ const ja = {
   postgresOnlyWarning:
     "現在、データベースバックアップ機能は pg_dump を使用する PostgreSQL 接続のみサポートしています。",
   restoringYourWorkspace: "ワークスペースの復元中...",
+  disableGpuLabel: "ハードウェアアクセラレーション (GPU) の無効化",
+  disableGpuDesc:
+    "グラフィックパフォーマンス関連の問題を解決するためにハードウェアアクセラレーションを無効化します。",
+  relaunchApp: "再起動",
 };
 
 export default ja;

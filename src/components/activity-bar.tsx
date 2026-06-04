@@ -33,6 +33,13 @@ export function ActivityBar() {
 
   const activeToolType = activeQueryTab?.type; // "benchmark" | "diff-optimizer" | ...
 
+  // Track last active tool tab ID in localStorage
+  React.useEffect(() => {
+    if (activeQueryTabId && activeToolType && activeToolType !== "sql") {
+      window.localStorage.setItem("usql:last-active-tool-tab-id", activeQueryTabId);
+    }
+  }, [activeQueryTabId, activeToolType]);
+
   const handleTabClick = (tab: TabType) => {
     if (activeTab === tab) {
       // Toggle sidebar open/closed if clicking the already active tab
@@ -43,20 +50,38 @@ export function ActivityBar() {
       setOpen(true);
     }
 
-    // Only restore SQL tab when clicking a "navigation" tab (explorer, history).
-    // "settings" and "tools" should NOT affect the main content area.
-    const isNavTab = tab === "explorer" || tab === "history";
-    if (activeToolType && isNavTab) {
-      const lastSqlTab = queryTabs.find((t) => !t.type || t.type === "sql");
-      if (lastSqlTab) {
-        updateActiveQueryTabId(lastSqlTab.id);
-      } else {
-        // Create new SQL tab
-        useTabStore.getState().openSqlTab({
-          title: "Query",
-          sql: "",
-          connectionId: useSidebarStore.getState().selectedConnectionId,
-        });
+    if (tab === "tools") {
+      const isToolActive = activeToolType && activeToolType !== "sql";
+      if (!isToolActive) {
+        const lastId = typeof window !== "undefined" ? window.localStorage.getItem("usql:last-active-tool-tab-id") : null;
+        const existingToolTab = lastId ? queryTabs.find((t) => t.id === lastId) : null;
+        if (existingToolTab) {
+          updateActiveQueryTabId(existingToolTab.id);
+        } else {
+          // Fallback to any tool tab if the last active one is no longer in queryTabs
+          const fallbackToolTab = queryTabs.find((t) => t.type && t.type !== "sql");
+          if (fallbackToolTab) {
+            updateActiveQueryTabId(fallbackToolTab.id);
+          } else {
+            // Open default/first tool tab
+            useTabStore.getState().openToolTab("benchmark");
+          }
+        }
+      }
+    } else {
+      const isNavTab = tab === "explorer" || tab === "history";
+      if (activeToolType && isNavTab) {
+        const lastSqlTab = queryTabs.find((t) => !t.type || t.type === "sql");
+        if (lastSqlTab) {
+          updateActiveQueryTabId(lastSqlTab.id);
+        } else {
+          // Create new SQL tab
+          useTabStore.getState().openSqlTab({
+            title: "Query",
+            sql: "",
+            connectionId: useSidebarStore.getState().selectedConnectionId,
+          });
+        }
       }
     }
   };

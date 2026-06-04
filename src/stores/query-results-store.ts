@@ -12,6 +12,9 @@ export interface ResultTab {
   name?: string;
 }
 
+/** Stable empty array for selectors — avoids new `[]` on every getSnapshot call. */
+export const EMPTY_RESULT_TABS: ResultTab[] = [];
+
 interface QueryResultsState {
   resultsByTab: Record<string, ResultTab[]>;
   activeResultTabIdByTab: Record<string, string | undefined>;

@@ -517,6 +517,9 @@ const en = {
   shortcutToggleSidebar: "Toggle Sidebar",
   shortcutToggleTheme: "Switch Dark/Light Mode",
   shortcutCommandPalette: "Command Palette",
+  recentQueriesTitle: "Recent Queries",
+  recentQueriesDesc:
+    "Quickly restore recently executed queries to your workspace.",
   noRecentQueries: "No query history yet.",
 
   // Dump Database Tool

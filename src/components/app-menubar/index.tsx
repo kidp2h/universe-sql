@@ -4,6 +4,7 @@ import { useKeyboard } from "@/hooks/use-keyboard";
 import { useGlobalEvents } from "@/hooks/use-global-events";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "react-i18next";
+import { useTabStore } from "@/stores/tab-store";
 import { Info, RefreshCw, LogOut, Terminal, Code2 } from "lucide-react";
 import {
   Menubar,
@@ -26,6 +27,11 @@ export function AppMenubar() {
   const { t } = useTranslation();
   const { toggleTheme } = useTheme();
   const { dispatchCommand, dispatchAppearance } = useGlobalEvents();
+  const queryTabs = useTabStore((state) => state.queryTabs);
+  const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
+  const activeTab = queryTabs.find((t) => t.id === activeQueryTabId);
+  const isQueryTabActive =
+    !!activeTab && (!activeTab.type || activeTab.type === "sql");
 
   // New query
   useKeyboard({
@@ -84,7 +90,11 @@ export function AppMenubar() {
     key: "Enter",
     ctrlKey: true,
     metaKey: true,
-    onKeyDown: () => dispatchCommand("execute"),
+    onKeyDown: () => {
+      if (isQueryTabActive) {
+        dispatchCommand("execute");
+      }
+    },
   });
 
   // Explain Analyze
@@ -93,7 +103,11 @@ export function AppMenubar() {
     ctrlKey: true,
     metaKey: true,
     shiftKey: true,
-    onKeyDown: () => dispatchCommand("explain"),
+    onKeyDown: () => {
+      if (isQueryTabActive) {
+        dispatchCommand("explain");
+      }
+    },
   });
 
   // Save
@@ -181,7 +195,11 @@ export function AppMenubar() {
     ctrlKey: true,
     metaKey: true,
     shiftKey: true,
-    onKeyDown: () => dispatchCommand("result-export-csv"),
+    onKeyDown: () => {
+      if (isQueryTabActive) {
+        dispatchCommand("result-export-csv");
+      }
+    },
   });
 
   // Export JSON
@@ -190,7 +208,11 @@ export function AppMenubar() {
     ctrlKey: true,
     metaKey: true,
     shiftKey: true,
-    onKeyDown: () => dispatchCommand("result-export-json"),
+    onKeyDown: () => {
+      if (isQueryTabActive) {
+        dispatchCommand("result-export-json");
+      }
+    },
   });
 
   return (

@@ -21,6 +21,11 @@ import { useTheme } from "@/hooks/use-theme";
 import { useConnection } from "@/hooks/use-connection";
 
 import { useTabStore } from "@/stores/tab-store";
+import { useShallow } from "zustand/react/shallow";
+
+import { useTranslation } from "react-i18next";
+
+// Import tool components
 import { QueryBenchmarkPage } from "@/components/query-benchmark-modal";
 import { QueryDiffPage } from "@/components/query-diff-modal";
 import { QueryHistorySnippetsPage } from "@/components/query-history-snippets-modal";
@@ -29,35 +34,93 @@ import SQLReferencePage from "@/components/sql-reference";
 import { VisualQueryStoryPage } from "@/components/query/query-story-page";
 import { ERDContainer } from "@/components/erd/erd-container";
 import { DatabaseDumpPage } from "@/components/database-dump";
-import { useTranslation } from "react-i18next";
+
+const TabEditorContainer = React.memo(
+  function TabEditorContainer({
+    tabId,
+    isActive,
+    connections,
+    activeConnection,
+    theme,
+    getSelectedTextRef,
+  }: {
+    tabId: string;
+    isActive: boolean;
+    connections: any[];
+    activeConnection: any;
+    theme: string;
+    getSelectedTextRef: any;
+  }) {
+    const tab = useTabStore(
+      useShallow((state) => {
+        const t = state.queryTabs.find((q) => q.id === tabId);
+        if (!t) return null;
+        return {
+          id: t.id,
+          connectionId: t.connectionId,
+          type: t.type,
+          sql: t.sql,
+        };
+      }),
+    );
+
+    const setQuerySql = useTabStore((state) => state.setQuerySql);
+
+    if (!tab) return null;
+
+    const isSqlTab = !tab.type || tab.type === "sql";
+    if (!isSqlTab) return null;
+
+    const tabConnection =
+      connections.find((c) => c.id === tab.connectionId) || activeConnection;
+
+    return (
+      <div
+        className="absolute inset-0"
+        style={{ display: isActive ? "block" : "none" }}
+      >
+        <SqlEditor
+          value={tab.sql || ""}
+          onChange={setQuerySql}
+          theme={theme}
+          getSelectedTextRef={getSelectedTextRef}
+          activeTabId={isActive ? tabId : undefined}
+          connection={tabConnection}
+        />
+      </div>
+    );
+  }
+);
+TabEditorContainer.displayName = "TabEditorContainer";
 
 const SqlWorkspace = React.memo(
   function SqlWorkspace({
-    queryTabs,
     activeQueryTabId,
     connections,
     activeConnection,
     theme,
-    setQuerySql,
     getSelectedTextRef,
   }: {
-    queryTabs: any[];
     activeQueryTabId: string | undefined;
     connections: any[];
     activeConnection: any;
     theme: string;
-    setQuerySql: any;
     getSelectedTextRef: any;
   }) {
     const [, setIsPending] = React.useState(false);
     const [deferredTabId, setDeferredTabId] = React.useState(activeQueryTabId);
 
+    const queryTabIds = useTabStore(
+      useShallow((state) => state.queryTabs.map((t) => t.id))
+    );
+
     const prevActiveTabIdRef = React.useRef(activeQueryTabId);
     const prevConnectionIdRef = React.useRef<string | null>(null);
 
-    const activeTab = queryTabs.find((t) => t.id === activeQueryTabId);
-    const activeConnectionId =
-      activeTab?.connectionId || activeConnection?.id || null;
+    const activeConnectionId = useTabStore((state) => {
+      const activeTab = state.queryTabs.find((t) => t.id === activeQueryTabId);
+      return activeTab?.connectionId || activeConnection?.id || null;
+    });
 
     React.useEffect(() => {
       const prevTabId = prevActiveTabIdRef.current;
@@ -82,30 +145,18 @@ const SqlWorkspace = React.memo(
 
     return (
       <div className="h-full w-full relative">
-        {queryTabs.map((tab) => {
-          const isActive = tab.id === deferredTabId;
-          const isSqlTab = !tab.type || tab.type === "sql";
-          if (!isSqlTab) return null;
-
-          const tabConnection =
-            connections.find((c) => c.id === tab.connectionId) ||
-            activeConnection;
-
+        {queryTabIds.map((tabId) => {
+          const isActive = tabId === deferredTabId;
           return (
-            <div
-              key={tab.id}
-              className="absolute inset-0"
-              style={{ display: isActive ? "block" : "none" }}
-            >
-              <SqlEditor
-                value={tab.sql || ""}
-                onChange={setQuerySql}
-                theme={theme}
-                getSelectedTextRef={getSelectedTextRef}
-                activeTabId={isActive ? deferredTabId : undefined}
-                connection={tabConnection}
-              />
-            </div>
+            <TabEditorContainer
+              key={tabId}
+              tabId={tabId}
+              isActive={isActive}
+              connections={connections}
+              activeConnection={activeConnection}
+              theme={theme}
+              getSelectedTextRef={getSelectedTextRef}
+            />
           );
         })}
       </div>
@@ -113,7 +164,6 @@ const SqlWorkspace = React.memo(
   },
   (prevProps, nextProps) => {
     return (
-      prevProps.queryTabs === nextProps.queryTabs &&
       prevProps.activeQueryTabId === nextProps.activeQueryTabId &&
       prevProps.connections === nextProps.connections &&
       prevProps.activeConnection === nextProps.activeConnection &&
@@ -130,8 +180,6 @@ export default function Home() {
   const [isEditorFocused] = React.useState(false);
   const { theme } = useTheme();
   const { connections, activeConnection } = useConnection();
-  const setQuerySql = useTabStore((state) => state.setQuerySql);
-  const queryTabs = useTabStore((state) => state.queryTabs);
   const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
   const {
     queryResult,
@@ -153,7 +201,7 @@ export default function Home() {
     handleCustomFileSelect,
   } = useQuery({ isEditorFocused });
 
-  const [mounted, setMounted] = React.useState(true);
+  const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     setMounted(true);
 
@@ -255,12 +303,10 @@ export default function Home() {
               >
                 <ResizablePanel defaultSize={50} minSize={15}>
                   <SqlWorkspace
-                    queryTabs={queryTabs}
                     activeQueryTabId={activeQueryTabId}
                     connections={connections}
                     activeConnection={activeConnection}
                     theme={theme}
-                    setQuerySql={setQuerySql}
                     getSelectedTextRef={getSelectedTextRef}
                   />
                 </ResizablePanel>

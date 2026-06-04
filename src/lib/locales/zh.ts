@@ -462,7 +462,7 @@ const zh = {
   shortcutToggleTheme: "切换深色/浅色模式",
   shortcutCommandPalette: "命令面板",
   recentQueriesTitle: "最近的查询",
-  recentQueriesDesc: "快速将最近执行 of 查询恢复到工作区。",
+  recentQueriesDesc: "快速将最近执行的查询恢复到工作区。",
   noRecentQueries: "暂无查询历史记录。",
 
   // Dump Database Tool
@@ -495,6 +495,9 @@ const zh = {
   postgresOnlyWarning:
     "当前数据库备份功能仅支持使用 pg_dump 的 PostgreSQL 连接。",
   restoringYourWorkspace: "正在恢复您的工作空间...",
+  disableGpuLabel: "关闭硬件加速（GPU）",
+  disableGpuDesc: "关闭硬件加速以解决图形性能相关问题。",
+  relaunchApp: "重新启动",
 };
 
 export default zh;

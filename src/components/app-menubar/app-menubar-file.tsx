@@ -72,11 +72,6 @@ export const AppMenubarFile = () => {
           {t("formatSql")}
           <Shortcut shortcut="⌘ + L" />
         </MenubarItem>
-        <MenubarSeparator />
-        <MenubarItem onSelect={() => dispatchCommand("quit")}>
-          <X className="size-4 text-red-500" />
-          {t("exit")}
-        </MenubarItem>
       </MenubarContent>
     </MenubarMenu>
   );

@@ -4,6 +4,7 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { useSidebarStore } from "@/stores/sidebar-store";
 import { useTabStore } from "@/stores/tab-store";
+import { useDumpStore } from "@/stores/dump-store";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -50,26 +51,34 @@ export function DatabaseDumpPage() {
 
   const context = activeTab?.context;
 
-  // Selected states
-  const [selectedConnId, setSelectedConnId] = React.useState<string>("");
-  const [databases, setDatabases] = React.useState<string[]>([]);
-  const [selectedDb, setSelectedDb] = React.useState<string>("");
-  const [schemas, setSchemas] = React.useState<string[]>([]);
-  const [selectedSchema, setSelectedSchema] = React.useState<string>("");
-  const [tables, setTables] = React.useState<
-    { name: string; size: number; columnCount?: number; indexCount?: number }[]
-  >([]);
-  const [selectedTables, setSelectedTables] = React.useState<string[]>([]);
-
-  // Filter/Search and loader states
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [loadingTables, setLoadingTables] = React.useState(false);
-  const [fetchError, setFetchError] = React.useState<string | null>(null);
-  const [isDumping, setIsDumping] = React.useState(false);
-
-  // Dump Options
-  const [exportMode, setExportMode] = React.useState<"copy" | "insert">("copy");
-  const [exportType, setExportType] = React.useState<"schema" | "both">("both");
+  const {
+    selectedConnId,
+    databases,
+    selectedDb,
+    schemas,
+    selectedSchema,
+    tables,
+    selectedTables,
+    searchTerm,
+    loadingTables,
+    fetchError,
+    isDumping,
+    exportMode,
+    exportType,
+    setSelectedConnId,
+    setDatabases,
+    setSelectedDb,
+    setSchemas,
+    setSelectedSchema,
+    setTables,
+    setSelectedTables,
+    setSearchTerm,
+    setLoadingTables,
+    setFetchError,
+    setIsDumping,
+    setExportMode,
+    setExportType,
+  } = useDumpStore();
 
   // Pre-populate connection from active context on mount/change
   React.useEffect(() => {

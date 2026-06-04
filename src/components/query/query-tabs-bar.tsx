@@ -22,19 +22,57 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Shortcut } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
 import { useTabStore } from "@/stores/tab-store";
+import { useShallow } from "zustand/react/shallow";
 import type { QueryTab } from "@/stores/tab-store";
 import { useTranslation } from "react-i18next";
 
 export function QueryTabsBar() {
   const { t } = useTranslation();
-  const allTabs = useTabStore((state) => state.queryTabs);
-  const tabs = React.useMemo(() => {
-    return allTabs.filter((t) => !t.type || t.type === "sql");
-  }, [allTabs]);
+  const tabsSerialized = useTabStore(
+    React.useCallback(
+      (state) =>
+        JSON.stringify(
+          state.queryTabs
+            .filter((t) => !t.type || t.type === "sql")
+            .map((t) => ({
+              id: t.id,
+              title: t.title,
+              icon: t.icon,
+              type: t.type,
+              isDirty: (t.savedSql ?? t.sql) !== t.sql,
+            }))
+        ),
+      []
+    )
+  );
+  const tabs = React.useMemo(() => JSON.parse(tabsSerialized), [tabsSerialized]);
   const activeTabId = useTabStore((state) => state.activeQueryTabId);
+  const activeTab = useTabStore(
+    useShallow((state) => {
+      const activeTabId = state.activeQueryTabId;
+      const tab =
+        state.queryTabs.find((t) => t.id === activeTabId) ?? state.queryTabs[0];
+      if (!tab) return undefined;
+      return {
+        id: tab.id,
+        title: tab.title,
+        icon: tab.icon,
+        type: tab.type,
+        isDirty: (tab.savedSql ?? tab.sql) !== tab.sql,
+      };
+    }),
+  );
   const onActivateTab = useTabStore((state) => state.updateActiveQueryTabId);
   const onCloseTab = useTabStore((state) => state.removeQueryTab);
   const onCloseAllTabs = useTabStore((state) => state.closeAllTabs);
@@ -109,20 +147,8 @@ export function QueryTabsBar() {
     "tab" | "app" | "all" | null
   >(null);
 
-  const activeTab = React.useMemo(() => {
-    if (tabs.length === 0) {
-      return undefined;
-    }
-    return tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
-  }, [activeTabId, tabs]);
-
   const isTabDirty = React.useCallback((tab?: typeof activeTab) => {
-    if (!tab) {
-      return false;
-    }
-
-    const savedSql = tab.savedSql ?? tab.sql;
-    return savedSql !== tab.sql;
+    return tab?.isDirty ?? false;
   }, []);
 
   const requestCloseQuery = React.useCallback(
@@ -338,7 +364,7 @@ export function QueryTabsBar() {
           const isActive = tab.id === activeTabId;
           const isDragging = draggedTabIndex === index;
           const isDragOver = dragOverTabIndex === index;
-          const isDirty = (tab.savedSql ?? tab.sql) !== tab.sql;
+          const isDirty = tab.isDirty;
 
           return (
             <ContextMenu key={tab.id}>
@@ -428,64 +454,76 @@ export function QueryTabsBar() {
           );
         })}
       </div>
-      {showUnsavedDialog ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg border bg-background p-4 shadow-lg">
-            <h3 className="text-sm font-semibold">{t("unsavedChanges")}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
+      <Dialog
+        open={showUnsavedDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowUnsavedDialog(false);
+            setPendingCloseTabId(null);
+            if (pendingCloseType === "app") {
+              void window.electron?.cancelClose?.();
+            }
+            setPendingCloseType(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{t("unsavedChanges")}</DialogTitle>
+            <DialogDescription>
               {pendingCloseType === "app"
                 ? t("confirmCloseApp")
                 : pendingCloseType === "all"
                   ? t("confirmCloseAllTabs")
                   : t("confirmCloseTab")}
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowUnsavedDialog(false);
-                  setPendingCloseTabId(null);
-                  if (pendingCloseType === "app") {
-                    void window.electron?.cancelClose?.();
-                  }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowUnsavedDialog(false);
+                setPendingCloseTabId(null);
+                if (pendingCloseType === "app") {
+                  void window.electron?.cancelClose?.();
+                }
+                setPendingCloseType(null);
+              }}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowUnsavedDialog(false);
+                if (pendingCloseType === "app") {
+                  void window.electron?.confirmClose?.();
                   setPendingCloseType(null);
-                }}
-              >
-                {t("cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  setShowUnsavedDialog(false);
-                  if (pendingCloseType === "app") {
-                    void window.electron?.confirmClose?.();
-                    setPendingCloseType(null);
-                    setPendingCloseTabId(null);
-                    return;
-                  }
-
-                  if (pendingCloseType === "all") {
-                    onCloseAllTabs();
-                    setPendingCloseType(null);
-                    setPendingCloseTabId(null);
-                    return;
-                  }
-
-                  if (pendingCloseTabId) {
-                    onCloseTab(pendingCloseTabId);
-                  } else {
-                    closeQuery();
-                  }
                   setPendingCloseTabId(null);
+                  return;
+                }
+
+                if (pendingCloseType === "all") {
+                  onCloseAllTabs();
                   setPendingCloseType(null);
-                }}
-              >
-                {t("closeWithoutSaving")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+                  setPendingCloseTabId(null);
+                  return;
+                }
+
+                if (pendingCloseTabId) {
+                  onCloseTab(pendingCloseTabId);
+                } else {
+                  closeQuery();
+                }
+                setPendingCloseTabId(null);
+                setPendingCloseType(null);
+              }}
+            >
+              {t("closeWithoutSaving")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

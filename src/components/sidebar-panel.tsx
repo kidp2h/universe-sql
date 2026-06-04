@@ -67,7 +67,7 @@ export function SidebarPanel() {
         width: `${open ? width : 0}px`,
       }}
       className={cn(
-        "bg-card h-full flex flex-col shrink-0 overflow-hidden relative select-none transition-all duration-200 ease-in-out",
+        "bg-card h-full flex flex-col shrink-0 overflow-hidden relative select-none",
         sidebarPosition === "left"
           ? "border-r items-start"
           : "border-l items-end",
@@ -77,7 +77,7 @@ export function SidebarPanel() {
       {/* Inner wrapper container with fixed min-width to prevent squishing */}
       <div
         className={cn(
-          "w-full min-w-[320px] h-full flex flex-col shrink-0 transition-opacity duration-200 ease-in-out",
+          "w-full min-w-[320px] h-full flex flex-col shrink-0",
           open
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none",
