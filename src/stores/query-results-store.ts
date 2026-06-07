@@ -18,6 +18,8 @@ export const EMPTY_RESULT_TABS: ResultTab[] = [];
 interface QueryResultsState {
   resultsByTab: Record<string, ResultTab[]>;
   activeResultTabIdByTab: Record<string, string | undefined>;
+  isExecutingByTab: Record<string, boolean>;
+  setIsExecuting: (tabId: string, isExecuting: boolean) => void;
   addResult: (
     tabId: string,
     result: Omit<ResultTab, "id" | "executedAt">,
@@ -40,6 +42,15 @@ export const useQueryResultsStore = create<QueryResultsState>()(
     (set) => ({
       resultsByTab: {},
       activeResultTabIdByTab: {},
+      isExecutingByTab: {},
+
+      setIsExecuting: (tabId, isExecuting) =>
+        set((state) => ({
+          isExecutingByTab: {
+            ...state.isExecutingByTab,
+            [tabId]: isExecuting,
+          },
+        })),
 
       addResult: (tabId, result) =>
         set((state) => {
@@ -117,9 +128,13 @@ export const useQueryResultsStore = create<QueryResultsState>()(
           const newActive = { ...state.activeResultTabIdByTab };
           delete newActive[tabId];
 
+          const newIsExecuting = { ...state.isExecutingByTab };
+          delete newIsExecuting[tabId];
+
           return {
             resultsByTab: newResults,
             activeResultTabIdByTab: newActive,
+            isExecutingByTab: newIsExecuting,
           };
         }),
 

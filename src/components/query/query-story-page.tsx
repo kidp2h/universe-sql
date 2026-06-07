@@ -581,7 +581,6 @@ export function VisualQueryStoryPage() {
                 <SqlEditor
                   value={customSql}
                   onChange={setCustomSql}
-                  theme={theme}
                   getSelectedTextRef={dummySelectedTextRef}
                   activeTabId="custom-query-story"
                   connection={currentConn}

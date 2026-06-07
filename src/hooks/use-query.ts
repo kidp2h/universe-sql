@@ -65,41 +65,12 @@ export function useQuery({
   const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
   const { connections, activeConnection, updateSelectedConnectionId } =
     useConnection();
-  const activeTabResultsSelector = React.useCallback(
-    (state: { resultsByTab: Record<string, ResultTab[]> }) =>
-      activeQueryTabId ? state.resultsByTab[activeQueryTabId] : undefined,
-    [activeQueryTabId],
-  );
-  const activeTabResults =
-    useQueryResultsStore(activeTabResultsSelector) ?? EMPTY_RESULT_TABS;
-
-  const activeResultTabIdSelector = React.useCallback(
-    (state: { activeResultTabIdByTab: Record<string, string | undefined> }) =>
-      activeQueryTabId
-        ? state.activeResultTabIdByTab[activeQueryTabId]
-        : undefined,
-    [activeQueryTabId],
-  );
-  const activeResultTabId = useQueryResultsStore(activeResultTabIdSelector);
-
-  const activeResult = React.useMemo(() => {
-    if (activeResultTabId) {
-      return activeTabResults.find((r) => r.id === activeResultTabId) || null;
-    }
-    return activeTabResults[0] || null;
-  }, [activeTabResults, activeResultTabId]);
-
-  const queryResult = activeResult ? activeResult.queryResult : null;
-  const isExplainMode = activeResult ? activeResult.isExplainMode : false;
-  const executionTime = activeResult ? activeResult.executionTime : null;
-
   const setQuerySql = useTabStore((state) => state.setQuerySql);
   const setQuerySaved = useTabStore((state) => state.setQuerySaved);
   const setQueryFilePath = useTabStore((state) => state.setQueryFilePath);
   const setQueryTitle = useTabStore((state) => state.setQueryTitle);
   const openSqlTab = useTabStore((state) => state.openSqlTab);
   const openQuery = useTabStore((state) => state.openQuery);
-  const [isExecuting, setIsExecuting] = React.useState(false);
   const [dmlConfirmation, setDmlConfirmation] = React.useState<{
     open: boolean;
     sql: string;
@@ -722,7 +693,7 @@ export function useQuery({
         }
       }
 
-      setIsExecuting(true);
+      useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, true);
 
       let success = false;
       const startTime = performance.now();
@@ -825,7 +796,7 @@ export function useQuery({
           sql: sqlToExecute,
         });
 
-        setIsExecuting(false);
+        useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, false);
         success = true;
       } catch (err: any) {
         const errorMsg = err?.message || "Execution error";
@@ -838,7 +809,7 @@ export function useQuery({
         throw err;
       } finally {
         if (!success) {
-          setIsExecuting(false);
+          useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, false);
         }
       }
     },
@@ -886,7 +857,7 @@ export function useQuery({
       return;
     }
 
-    setIsExecuting(true);
+    useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, true);
 
     logger.log(
       `[Query] Running EXPLAIN ANALYZE on connection: "${activeTabConnection.name}". SQL: "${sqlToExplain}"`,
@@ -990,7 +961,7 @@ export function useQuery({
       });
       throw err;
     } finally {
-      setIsExecuting(false);
+      useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, false);
     }
   }, [activeTabConnection, activeQueryTabId]);
 
@@ -1078,8 +1049,8 @@ export function useQuery({
   );
 
   const cancelQuery = React.useCallback(() => {
-    setIsExecuting(false);
     if (activeQueryTabId) {
+      useQueryResultsStore.getState().setIsExecuting(activeQueryTabId, false);
       useQueryResultsStore.getState().clearResults(activeQueryTabId);
     }
     toast.info("Query execution cancelled");
@@ -1161,10 +1132,6 @@ export function useQuery({
   }, [isAutoSaveEnabled, saveSQL]);
 
   return {
-    queryResult,
-    isExecuting,
-    isExplainMode,
-    executionTime,
     getSelectedTextRef,
     fileInputRef,
     activeTab,

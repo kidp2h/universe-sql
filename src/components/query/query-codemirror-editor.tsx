@@ -16,14 +16,11 @@ import {
 import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { setDiagnostics } from "@/lib/decoration";
-import {
-  autocompletion,
-  completeFromList,
-  CompletionContext,
-} from "@codemirror/autocomplete";
+import { autocompletion, completeFromList, CompletionContext } from "@codemirror/autocomplete";
 import { useQuerySnippetsStore } from "@/stores/query-snippets-store";
+import { useTheme } from "@/hooks/use-theme";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Copy, Check, Type, Package, LayoutGrid, Table2 } from "lucide-react";
+import { Copy, Check, Type, Package, LayoutGrid, Table2, Database, Network, Eye, Percent, SquareCode } from "lucide-react";
 // Pre-render lucide icons to HTML strings (module-level, runs once)
 const _copyIconHtml = renderToStaticMarkup(
   React.createElement(Copy, { size: 12, strokeWidth: 2 }),
@@ -43,6 +40,21 @@ const tableSvg = renderToStaticMarkup(
 const columnSvg = renderToStaticMarkup(
   React.createElement(Table2, { size: 13, strokeWidth: 2 }),
 );
+const databaseSvg = renderToStaticMarkup(
+  React.createElement(Database, { size: 13, strokeWidth: 2 }),
+);
+const schemaSvg = renderToStaticMarkup(
+  React.createElement(Network, { size: 13, strokeWidth: 2 }),
+);
+const viewSvg = renderToStaticMarkup(
+  React.createElement(Eye, { size: 13, strokeWidth: 2 }),
+);
+const operatorSvg = renderToStaticMarkup(
+  React.createElement(Percent, { size: 13, strokeWidth: 2 }),
+);
+const snippetSvg = renderToStaticMarkup(
+  React.createElement(SquareCode, { size: 13, strokeWidth: 2 }),
+);
 const parser = new Parser();
 function iconSvg(type: string): string {
   const icons: Record<string, string> = {
@@ -52,6 +64,11 @@ function iconSvg(type: string): string {
     property: columnSvg,
     constant: functionSvg, // CTE uses function icon (purple)
     variable: columnSvg,  // alias uses column icon
+    database: databaseSvg,
+    schema: schemaSvg,
+    view: viewSvg,
+    operator: operatorSvg,
+    snippet: snippetSvg,
   };
   return icons[type] ?? functionSvg;
 }
@@ -87,6 +104,36 @@ const iconColors = {
     bg: "var(--completion-property-bg)",
     fg: "var(--completion-property-fg)",
     border: "var(--completion-property-border)",
+  },
+  // Database completions — blue
+  database: {
+    bg: "rgba(59, 130, 246, 0.1)",
+    fg: "rgb(59, 130, 246)",
+    border: "rgba(59, 130, 246, 0.2)",
+  },
+  // Schema completions — orange
+  schema: {
+    bg: "rgba(245, 158, 11, 0.1)",
+    fg: "rgb(245, 158, 11)",
+    border: "rgba(245, 158, 11, 0.2)",
+  },
+  // View completions — teal
+  view: {
+    bg: "rgba(20, 184, 166, 0.1)",
+    fg: "rgb(20, 184, 166)",
+    border: "rgba(20, 184, 166, 0.2)",
+  },
+  // Operator completions — pink
+  operator: {
+    bg: "rgba(236, 72, 153, 0.1)",
+    fg: "rgb(236, 72, 153)",
+    border: "rgba(236, 72, 153, 0.2)",
+  },
+  // Snippet completions — indigo
+  snippet: {
+    bg: "rgba(99, 102, 241, 0.1)",
+    fg: "rgb(99, 102, 241)",
+    border: "rgba(99, 102, 241, 0.2)",
   },
 };
 function formatParserError(e: any, sql: string): string {
@@ -157,6 +204,11 @@ const TYPE_BADGE_LABEL: Record<string, string> = {
   constant: "cte",
   class: "tbl",
   module: "cte",
+  database: "db",
+  schema: "sch",
+  view: "vw",
+  operator: "op",
+  snippet: "snip",
 };
 const autocompleteTheme = autocompletion({
   defaultKeymap: true,
@@ -494,14 +546,12 @@ export const SqlEditor = React.memo(
   function SqlEditor({
     value,
     onChange,
-    theme,
     getSelectedTextRef,
     activeTabId,
     connection,
   }: {
     value: string;
     onChange: (val: string) => void;
-    theme: string;
     getSelectedTextRef: any;
     activeTabId?: string;
     connection?: any;
@@ -509,6 +559,7 @@ export const SqlEditor = React.memo(
     logger.log(
       `[SqlEditor] Rendered: value length = ${value?.length ?? 0}, activeTabId = ${activeTabId}`,
     );
+    const { theme } = useTheme();
     const snippets = useQuerySnippetsStore((state) => state.snippets);
     const schema = React.useMemo(() => {
       logger.log(
@@ -1242,7 +1293,6 @@ export const SqlEditor = React.memo(
   (prevProps, nextProps) => {
     return (
       prevProps.value === nextProps.value &&
-      prevProps.theme === nextProps.theme &&
       prevProps.activeTabId === nextProps.activeTabId &&
       prevProps.connection === nextProps.connection
     );

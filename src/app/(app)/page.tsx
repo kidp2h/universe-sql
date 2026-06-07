@@ -37,14 +37,12 @@ const TabEditorContainer = React.memo(function TabEditorContainer({
   isActive,
   connections,
   activeConnection,
-  theme,
   getSelectedTextRef,
 }: {
   tabId: string;
   isActive: boolean;
   connections: any[];
   activeConnection: any;
-  theme: string;
   getSelectedTextRef: any;
 }) {
   const tab = useTabStore(
@@ -78,7 +76,6 @@ const TabEditorContainer = React.memo(function TabEditorContainer({
       <SqlEditor
         value={tab.sql || ""}
         onChange={setQuerySql}
-        theme={theme}
         getSelectedTextRef={getSelectedTextRef}
         activeTabId={isActive ? tabId : undefined}
         connection={tabConnection}
@@ -93,13 +90,11 @@ const SqlWorkspace = React.memo(
     activeQueryTabId,
     connections,
     activeConnection,
-    theme,
     getSelectedTextRef,
   }: {
     activeQueryTabId: string | undefined;
     connections: any[];
     activeConnection: any;
-    theme: string;
     getSelectedTextRef: any;
   }) {
     const [, setIsPending] = React.useState(false);
@@ -149,7 +144,6 @@ const SqlWorkspace = React.memo(
               isActive={isActive}
               connections={connections}
               activeConnection={activeConnection}
-              theme={theme}
               getSelectedTextRef={getSelectedTextRef}
             />
           );
@@ -161,8 +155,7 @@ const SqlWorkspace = React.memo(
     return (
       prevProps.activeQueryTabId === nextProps.activeQueryTabId &&
       prevProps.connections === nextProps.connections &&
-      prevProps.activeConnection === nextProps.activeConnection &&
-      prevProps.theme === nextProps.theme
+      prevProps.activeConnection === nextProps.activeConnection
     );
   },
 );
@@ -173,14 +166,9 @@ export default function Home() {
   logger.log("[Home] Rendered");
   const { showResultsPanel } = useSidebar();
   const [isEditorFocused] = React.useState(false);
-  const { theme } = useTheme();
   const { connections, activeConnection } = useConnection();
   const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
   const {
-    queryResult,
-    isExecuting,
-    isExplainMode,
-    executionTime,
     getSelectedTextRef,
     fileInputRef,
     activeTab,
@@ -298,7 +286,6 @@ export default function Home() {
                     activeQueryTabId={activeQueryTabId}
                     connections={connections}
                     activeConnection={activeConnection}
-                    theme={theme}
                     getSelectedTextRef={getSelectedTextRef}
                   />
                 </ResizablePanel>
@@ -308,14 +295,8 @@ export default function Home() {
                 {activeTab && showResultsPanel ? (
                   <ResizablePanel defaultSize={50} minSize={15}>
                     <QueryResultsPanel
-                      isExecuting={isExecuting}
-                      queryResult={queryResult}
-                      isExplainMode={isExplainMode}
-                      executionTime={executionTime}
                       copyText={copyText}
-                      onRunWithoutLimit={() =>
-                        executeQuery(queryResult?.executedSql, false, true)
-                      }
+                      executeQuery={executeQuery}
                       onCancel={cancelQuery}
                       onExplainResultTab={explainResultTab}
                     />

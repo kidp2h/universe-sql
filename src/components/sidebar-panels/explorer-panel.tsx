@@ -12,6 +12,8 @@ import { Plus, Network } from "lucide-react";
 import { DrawerViewComments } from "@/components/drawer-view-comments";
 import { SheetEditConnection } from "@/components/sheet-edit-connection";
 import { SidebarConnectionDrawer } from "@/components/sidebar-connection-drawer";
+import { ExportConnectionsModal } from "@/components/export-connections-modal";
+import { ImportConnectionsButton } from "@/components/import-connections-button";
 
 const fetchDatabasesForConnection = async (conn: any) => {
   if (conn.dbType !== "postgres") {
@@ -628,15 +630,19 @@ export function ExplorerPanel() {
         <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
           {t("databaseExplorer")}
         </span>
-        <SidebarConnectionDrawer>
-          <button
-            type="button"
-            className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer outline-hidden"
-            title={t("addConnectionTitle")}
-          >
-            <Plus className="size-4" />
-          </button>
-        </SidebarConnectionDrawer>
+        <div className="flex items-center gap-1">
+          <ImportConnectionsButton />
+          <ExportConnectionsModal />
+          <SidebarConnectionDrawer>
+            <button
+              type="button"
+              className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer outline-hidden"
+              title={t("addConnectionTitle")}
+            >
+              <Plus className="size-4" />
+            </button>
+          </SidebarConnectionDrawer>
+        </div>
       </div>
 
       {/* Explorer Tree */}

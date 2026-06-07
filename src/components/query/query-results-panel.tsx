@@ -42,12 +42,8 @@ import {
 } from "@/stores/query-results-store";
 
 type QueryResultsPanelProps = {
-  isExecuting: boolean;
-  queryResult: QueryResult | null;
-  isExplainMode: boolean;
-  executionTime: number | null;
   copyText: (text: string) => void | Promise<void>;
-  onRunWithoutLimit?: () => void | Promise<void>;
+  executeQuery?: (sql: string, skipConfirm?: boolean, bypassLimit?: boolean) => Promise<void>;
   onCancel?: () => void;
   onExplainResultTab?: (
     queryTabId: string,
@@ -294,10 +290,12 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
   const executionTime = tab.executionTime;
 
   React.useEffect(() => {
+    setSorting([]);
+    setSelectionCount(0);
     if (queryResult) {
       setExplainTab("visual");
     }
-  }, [queryResult]);
+  }, [tab.id, queryResult]);
 
   React.useEffect(() => {
     const handleViewJsonEvent = (e: Event) => {
@@ -521,6 +519,7 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
                   onOpenChange={handleContextMenuOpenChange}
                 >
                   <ResultsTable
+                    key={tab.id}
                     data={data}
                     columns={columns}
                     sorting={sorting}
@@ -581,6 +580,7 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
               </div>
             ) : (
               <ResultsTable
+                key={tab.id}
                 data={data}
                 columns={columns}
                 sorting={sorting}
@@ -697,16 +697,16 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
 export const QueryTabResultsContainer = React.memo(
   function QueryTabResultsContainer({
     queryTabId,
-    isExecuting,
+    isActive,
     copyText,
-    onRunWithoutLimit,
+    executeQuery,
     onCancel,
     onExplainResultTab,
   }: {
     queryTabId: string;
-    isExecuting: boolean;
+    isActive: boolean;
     copyText: (text: string) => void | Promise<void>;
-    onRunWithoutLimit?: () => void | Promise<void>;
+    executeQuery?: (sql: string, skipConfirm?: boolean, bypassLimit?: boolean) => Promise<void>;
     onCancel?: () => void;
     onExplainResultTab?: (
       queryTabId: string,
@@ -729,6 +729,20 @@ export const QueryTabResultsContainer = React.memo(
         [queryTabId],
       ),
     );
+
+    const isExecuting = useQueryResultsStore(
+      React.useCallback(
+        (state) => state.isExecutingByTab[queryTabId] || false,
+        [queryTabId],
+      ),
+    );
+
+    const onRunWithoutLimit = React.useCallback(() => {
+      const sql = tabResults[0]?.queryResult?.executedSql;
+      if (sql && executeQuery) {
+        executeQuery(sql, false, true);
+      }
+    }, [tabResults, executeQuery]);
 
     const effectiveActiveResultTabId = activeResultTabId || tabResults[0]?.id;
 
@@ -881,12 +895,8 @@ export const QueryTabResultsContainer = React.memo(
 );
 
 export const QueryResultsPanel = React.memo(function QueryResultsPanel({
-  isExecuting,
-  queryResult: _ignoredQueryResult,
-  isExplainMode: _ignoredIsExplainMode,
-  executionTime: _ignoredExecutionTime,
   copyText,
-  onRunWithoutLimit,
+  executeQuery,
   onCancel,
   onExplainResultTab,
 }: QueryResultsPanelProps) {
@@ -965,9 +975,9 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
           >
             <QueryTabResultsContainer
               queryTabId={qTabId}
-              isExecuting={isActive ? isExecuting : false}
+              isActive={isActive}
               copyText={copyText}
-              onRunWithoutLimit={onRunWithoutLimit}
+              executeQuery={executeQuery}
               onCancel={isActive ? onCancel : undefined}
               onExplainResultTab={onExplainResultTab}
             />

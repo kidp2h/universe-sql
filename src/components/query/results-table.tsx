@@ -61,6 +61,102 @@ interface ResultsTableProps extends React.HTMLAttributes<HTMLDivElement> {
   isPopulating?: boolean;
 }
 
+interface TableBodyContentProps {
+  table: any;
+  isPopulating?: boolean;
+  columnVisibility: any;
+  finalizedSelectionRef: React.RefObject<Set<string>>;
+  onCellMouseDown: (
+    e: React.MouseEvent,
+    row: number,
+    col: number,
+    isSelectCol: boolean,
+  ) => void;
+  onCellMouseEnter: (row: number, col: number, isSelectCol: boolean) => void;
+  pageIndex: number;
+  pageSize: number;
+  rowSelection: any;
+  sorting: any;
+  columnFilters: any;
+  columnSizing: any;
+  data: any[];
+}
+
+const TableBodyContent = React.memo(
+  function TableBodyContent({
+    table,
+    isPopulating,
+    columnVisibility,
+    finalizedSelectionRef,
+    onCellMouseDown,
+    onCellMouseEnter,
+    data,
+    pageIndex,
+    pageSize,
+  }: TableBodyContentProps) {
+    // We use getSortedRowModel() to get the rows after filtering and sorting, but BEFORE pagination
+    const sortedFilteredRows = table.getSortedRowModel().rows;
+    const start = pageIndex * pageSize;
+    const end = start + pageSize;
+    const rows = sortedFilteredRows.slice(start, end);
+    console.log(rows, data)
+    return (
+      <TableBody>
+        {rows?.length ? (
+          rows.map((row: any) => (
+            <MemoizedTableRow
+              key={row.id}
+              row={row}
+              isSelected={row.getIsSelected()}
+              columnVisibility={columnVisibility}
+              finalizedSelectionRef={finalizedSelectionRef}
+              onCellMouseDown={onCellMouseDown}
+              onCellMouseEnter={onCellMouseEnter}
+            />
+          ))
+        ) : isPopulating ? (
+          <TableRow>
+            <TableCell
+              colSpan={table.getVisibleLeafColumns().length}
+              className="h-24 text-center"
+            >
+              <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm select-none">
+                <Loader2 className="size-4 animate-spin" />
+                <span>Loading rows...</span>
+              </div>
+            </TableCell>
+          </TableRow>
+        ) : (
+          <TableRow>
+            <TableCell
+              colSpan={table.getVisibleLeafColumns().length}
+              className="h-24 text-center"
+            >
+              No results.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    );
+  },
+  (prev, next) => {
+    return (
+      prev.pageIndex === next.pageIndex &&
+      prev.pageSize === next.pageSize &&
+      prev.rowSelection === next.rowSelection &&
+      prev.sorting === next.sorting &&
+      prev.columnFilters === next.columnFilters &&
+      prev.columnSizing === next.columnSizing &&
+      prev.isPopulating === next.isPopulating &&
+      prev.columnVisibility === next.columnVisibility &&
+      prev.finalizedSelectionRef === next.finalizedSelectionRef &&
+      prev.onCellMouseDown === next.onCellMouseDown &&
+      prev.onCellMouseEnter === next.onCellMouseEnter &&
+      prev.data === next.data
+    );
+  },
+);
+
 export const ResultsTable = React.memo(function ResultsTable({
   data,
   columns,
@@ -83,21 +179,10 @@ export const ResultsTable = React.memo(function ResultsTable({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
-  const [isPageChanging, setIsPageChanging] = React.useState(false);
-
-  // Wrapper to handle page changes with a loading state
-  const handlePageChange = React.useCallback((action: () => void) => {
-    setIsPageChanging(true);
-    // Use a small timeout to allow the loading state to be painted before the heavy table update
-    setTimeout(() => {
-      action();
-      // After the action (which is synchronous in react-table), we can reset the loading state
-      // Wrapping in another timeout or requestAnimationFrame ensures the paint has happened
-      requestAnimationFrame(() => {
-        setIsPageChanging(false);
-      });
-    }, 10);
-  }, []);
+  const [pagination, setPagination] = React.useState({
+    pageIndex: 0,
+    pageSize: 100,
+  });
 
   const table = useReactTable({
     data,
@@ -109,6 +194,7 @@ export const ResultsTable = React.memo(function ResultsTable({
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnFiltersChange: setColumnFilters,
+    onPaginationChange: setPagination,
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
@@ -126,9 +212,17 @@ export const ResultsTable = React.memo(function ResultsTable({
     enableRowSelection: true,
     columnResizeMode: "onEnd",
     enableColumnResizing: true,
-    state: { sorting, rowSelection, columnVisibility, columnFilters },
+    state: {
+      sorting,
+      rowSelection,
+      columnVisibility,
+      columnFilters,
+      pagination,
+    },
+    autoResetPageIndex: false,
     initialState: { pagination: { pageSize: 100 } },
   });
+
 
   const { getResizeHandlerProps } = useTableResize(table);
 
@@ -138,8 +232,8 @@ export const ResultsTable = React.memo(function ResultsTable({
     : null;
   const leftOffset = resizingHeader
     ? resizingHeader.column.getStart() +
-      resizingHeader.column.getSize() +
-      (table.getState().columnSizingInfo.deltaOffset ?? 0)
+    resizingHeader.column.getSize() +
+    (table.getState().columnSizingInfo.deltaOffset ?? 0)
     : 0;
 
   React.useEffect(() => {
@@ -192,8 +286,10 @@ export const ResultsTable = React.memo(function ResultsTable({
               variant="outline"
               size="icon"
               className="h-6 w-6"
-              onClick={() => handlePageChange(() => table.previousPage())}
-              disabled={!table.getCanPreviousPage() || isPageChanging}
+              onClick={() => {
+                table.previousPage();
+              }}
+              disabled={!table.getCanPreviousPage()}
             >
               <ChevronLeft className="size-3" />
             </Button>
@@ -201,8 +297,10 @@ export const ResultsTable = React.memo(function ResultsTable({
               variant="outline"
               size="icon"
               className="h-6 w-6"
-              onClick={() => handlePageChange(() => table.nextPage())}
-              disabled={!table.getCanNextPage() || isPageChanging}
+              onClick={() => {
+                table.nextPage();
+              }}
+              disabled={!table.getCanNextPage()}
             >
               <ChevronRight className="size-3" />
             </Button>
@@ -229,19 +327,7 @@ export const ResultsTable = React.memo(function ResultsTable({
           }
         }}
       >
-        {isPageChanging && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/50 backdrop-blur-[1px] animate-in fade-in duration-200">
-            <div className="flex flex-col items-center gap-2 bg-card p-4 rounded-lg border shadow-lg">
-              <Loader2
-                className="size-6 animate-spin text-primary"
-                style={{ willChange: "transform" }}
-              />
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Loading page...
-              </span>
-            </div>
-          </div>
-        )}
+
         <Table
           className="border-collapse border-spacing-0 table-fixed"
           style={{ width: table.getCenterTotalSize() }}
@@ -349,50 +435,29 @@ export const ResultsTable = React.memo(function ResultsTable({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                // ✅ Truyền isSelected như primitive để areEqual so sánh đúng
-                <MemoizedTableRow
-                  key={row.id}
-                  row={row}
-                  isSelected={row.getIsSelected()}
-                  columnVisibility={columnVisibility}
-                  finalizedSelectionRef={finalizedSelectionRef}
-                  onCellMouseDown={onCellMouseDown}
-                  onCellMouseEnter={onCellMouseEnter}
-                />
-              ))
-            ) : isPopulating ? (
-              <TableRow>
-                <TableCell
-                  colSpan={table.getVisibleLeafColumns().length}
-                  className="h-24 text-center"
-                >
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm select-none">
-                    <Loader2 className="size-4 animate-spin" />
-                    <span>Loading rows...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={table.getVisibleLeafColumns().length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
+          <TableBodyContent
+            table={table}
+            pageIndex={pagination.pageIndex}
+            pageSize={pagination.pageSize}
+            rowSelection={rowSelection}
+            sorting={sorting}
+            columnFilters={columnFilters}
+            columnSizing={table.getState().columnSizing}
+            isPopulating={isPopulating}
+            columnVisibility={columnVisibility}
+            finalizedSelectionRef={finalizedSelectionRef}
+            onCellMouseDown={onCellMouseDown}
+            onCellMouseEnter={onCellMouseEnter}
+            data={data}
+          />
         </Table>
         {resizingHeader && (
           <div
             style={{
-              left: `${leftOffset}px`,
+              transform: `translate3d(${leftOffset}px, 0, 0)`,
+              willChange: "transform",
             }}
-            className="absolute top-0 bottom-0 w-0.5 bg-brand z-30 pointer-events-none shadow-sm"
+            className="absolute left-0 top-0 bottom-0 w-0.5 bg-brand z-30 pointer-events-none shadow-sm"
           />
         )}
       </div>
