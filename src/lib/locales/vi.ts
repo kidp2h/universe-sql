@@ -89,6 +89,27 @@ const vi = {
   iterationsLabel: "Số lần chạy:",
   iterationsDesc:
     "(Mặc định là 10, tối đa 50 lần chạy để tìm trung bình chính xác)",
+  executionTiming: "Thời gian thực thi",
+  configureConnection: "1. Cấu hình kết nối",
+  inputQueries: "2. Nhập truy vấn",
+  executionOptions: "3. Tùy chọn thực thi",
+  comparisonOutput: "4. Kết quả so sánh",
+  tabComparisonView: "Chế độ so sánh",
+  tabInputA: "Truy vấn A (Gốc)",
+  tabInputB: "Truy vấn B (Tối ưu)",
+  keyColLabelRefined: "Unique Key:",
+  keyColDescRefined: "Unique Key (để căn chỉnh hàng, ví dụ: 'id')",
+  rowLimitTooltip:
+    "Giới hạn số lượng dòng tối đa trả về để bảo vệ bộ nhớ frontend",
+  keyColTooltip:
+    "Chỉ định cột chứa các giá trị duy nhất để ánh xạ và căn chỉnh chính xác các dòng tương ứng giữa hai kết quả truy vấn (ví dụ: 'id')",
+  performanceSummary: "Tóm tắt hiệu suất",
+  dataDiffGrid: "Bảng khác biệt dữ liệu",
+  difference: "Khác biệt",
+  rowCount: "Số lượng dòng",
+  mismatchCount: "Phát hiện {{count}} dòng lệch",
+  editor: "Trình soạn thảo",
+  layout: "Bố cục",
   reset: "Đặt lại",
   startBenchmark: "Bắt đầu đo",
   benchmarking: "Đang đo hiệu năng truy vấn...",
@@ -571,6 +592,35 @@ const vi = {
   unsupportedFileFormat:
     "Định dạng tệp không hỗ trợ. Chỉ cho phép các tệp {{ext}}.",
   openFileBtn: "Mở Tệp",
+
+  // Thiết kế Cơ sở dữ liệu & cài đặt
+  toolDbDesignerName: "Thiết kế CSDL",
+  toolDbDesignerDesc: "Thiết kế trực quan các bảng và vẽ mối quan hệ",
+  dbDesignerTitle: "Trình thiết kế CSDL",
+  dbDesignerDesc:
+    "Thiết kế trực quan bảng và cột, vẽ mối quan hệ và tạo mã SQL schema.",
+  editorFontSize: "Cỡ chữ Trình soạn thảo",
+  editorFontSizeDesc:
+    "Điều chỉnh cỡ chữ hiển thị trong trình soạn thảo truy vấn.",
+  viewJsonTitle: "Xem JSON",
+  viewJsonDesc: "Trình xem định dạng JSON",
+  addTable: "Thêm Bảng",
+  tableName: "Tên Bảng",
+  addColumn: "Thêm Cột",
+  columnName: "Tên Cột",
+  dataType: "Kiểu Dữ liệu",
+  isPrimary: "Khóa chính (PK)",
+  isNullable: "Cho phép Null",
+  generatedSql: "Mã DDL SQL tạo ra",
+  deleteTable: "Xóa Bảng",
+  deleteColumn: "Xóa Cột",
+  tableAdded: "Đã thêm bảng vào bản thiết kế!",
+  canvasCleared: "Đã xóa sạch bản thiết kế.",
+  selfReferenceWarning: "Không hỗ trợ kết nối tự tham chiếu.",
+  copiedLabel: "Đã sao chép",
+  noColumnsDefined: "Chưa định nghĩa cột nào. Nhấp Sửa để thêm.",
+  placeholderTableName: "ten_bang",
+  placeholderColumnName: "ten_cot",
 };
 
 export default vi;

@@ -7,28 +7,19 @@ import {
 
 export const THEME_STORAGE_KEY = "theme";
 
-export type Theme = "dark" | "light" | "system";
-
-export function getSystemPreference(): "dark" | "light" {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
+export type Theme = "dark" | "light";
 
 export function getStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "dark";
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored === "dark" || stored === "light" || stored === "system") {
+  if (stored === "dark" || stored === "light") {
     return stored;
   }
-  return "system";
+  return "dark";
 }
 
 export function resolveIsDark(theme: Theme): boolean {
-  return theme === "system"
-    ? getSystemPreference() === "dark"
-    : theme === "dark";
+  return theme === "dark";
 }
 
 /** Apply dark/light class and theme preset to <html>. Safe to call before paint. */
@@ -46,8 +37,8 @@ export function applyDocumentTheme(
 
 /** Inline script for <head> — runs before React hydration to prevent theme flash. */
 export const THEME_INIT_SCRIPT = `(function(){try{
-  var s=localStorage.getItem('${THEME_STORAGE_KEY}')||'system';
-  var isDark=s==='dark'||(s==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+  var s=localStorage.getItem('${THEME_STORAGE_KEY}')||'dark';
+  var isDark=s==='dark';
   var el=document.documentElement;
   if(isDark){el.classList.add('dark')}else{el.classList.remove('dark')};
   el.style.colorScheme=isDark?'dark':'light';

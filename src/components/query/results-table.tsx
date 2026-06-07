@@ -38,6 +38,7 @@ import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { MemoizedTableRow } from "./results-table-row";
 import { ColumnFilterPopover } from "./column-filter-popover";
 import { cn } from "@/lib/utils";
+import { useTableResize } from "@/hooks/use-table-resize";
 
 interface ResultsTableProps extends React.HTMLAttributes<HTMLDivElement> {
   data: Record<string, unknown>[];
@@ -123,9 +124,23 @@ export const ResultsTable = React.memo(function ResultsTable({
       filterFn: "arrIncludes",
     },
     enableRowSelection: true,
+    columnResizeMode: "onEnd",
+    enableColumnResizing: true,
     state: { sorting, rowSelection, columnVisibility, columnFilters },
     initialState: { pagination: { pageSize: 100 } },
   });
+
+  const { getResizeHandlerProps } = useTableResize(table);
+
+  const resizingColumnId = table.getState().columnSizingInfo.isResizingColumn;
+  const resizingHeader = resizingColumnId
+    ? table.getFlatHeaders().find((h) => h.column.id === resizingColumnId)
+    : null;
+  const leftOffset = resizingHeader
+    ? resizingHeader.column.getStart() +
+      resizingHeader.column.getSize() +
+      (table.getState().columnSizingInfo.deltaOffset ?? 0)
+    : 0;
 
   React.useEffect(() => {
     onSelectionChange(Object.keys(rowSelection).length);
@@ -227,17 +242,21 @@ export const ResultsTable = React.memo(function ResultsTable({
             </div>
           </div>
         )}
-        <Table className="border-collapse border-spacing-0">
+        <Table
+          className="border-collapse border-spacing-0 table-fixed"
+          style={{ width: table.getCenterTotalSize() }}
+        >
           <TableHeader
             className="sticky top-0 bg-background z-10 shadow-sm"
             onContextMenu={(e) => e.stopPropagation()}
           >
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
+                {headerGroup.headers.map((header, index) => (
                   <TableHead
                     key={header.id}
-                    className={`group whitespace-nowrap py-2 font-semibold select-none sticky top-0 z-20 bg-background border-b border-r ${header.id === "select" ? "w-[40px] min-w-[40px] max-w-[40px] px-0" : "px-4"}`}
+                    style={{ width: header.getSize() }}
+                    className={`group whitespace-nowrap py-2 font-semibold select-none sticky top-0 z-20 bg-background border-b border-r relative ${header.id === "select" ? "w-[40px] min-w-[40px] max-w-[40px] px-0" : "px-4"}`}
                   >
                     {header.isPlaceholder ? null : header.id === "select" ? (
                       <div className="flex items-center justify-center w-full">
@@ -313,6 +332,18 @@ export const ResultsTable = React.memo(function ResultsTable({
                         )}
                       </div>
                     )}
+                    {header.column.getCanResize() &&
+                      index !== headerGroup.headers.length - 1 &&
+                      header.id !== "select" && (
+                        <div
+                          onDoubleClick={() => header.column.resetSize()}
+                          {...getResizeHandlerProps(header.column.id)}
+                          className={cn(
+                            "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-brand bg-border/40 group-hover:bg-muted-foreground/30 z-30 transition-colors",
+                            header.column.getIsResizing() && "bg-brand w-1.5",
+                          )}
+                        />
+                      )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -356,6 +387,14 @@ export const ResultsTable = React.memo(function ResultsTable({
             )}
           </TableBody>
         </Table>
+        {resizingHeader && (
+          <div
+            style={{
+              left: `${leftOffset}px`,
+            }}
+            className="absolute top-0 bottom-0 w-0.5 bg-brand z-30 pointer-events-none shadow-sm"
+          />
+        )}
       </div>
     </div>
   );

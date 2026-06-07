@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import type { TreeDataItem } from "@/components/tree-view";
 import {
   Lock,
-  FileJson,
   Hash,
   Type,
   ToggleLeft,
@@ -16,12 +15,6 @@ import {
 import { ConnectionContextMenu } from "@/components/connection-context-menu";
 import { TableContextMenu } from "@/components/table-context-menu";
 import { SchemaContextMenu } from "@/components/schema-context-menu";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { cn, formatRelativeTime, formatBytes } from "@/lib/utils";
 import {
   PostgresIcon,
@@ -35,62 +28,6 @@ import {
   ColumnForeignIcon,
   ColumnDefaultIcon,
 } from "@/hooks/use-tree-data";
-
-function ColumnContextMenu({
-  item,
-  children,
-}: {
-  item: TreeDataItem;
-  children: React.ReactNode;
-}) {
-  const { t } = useTranslation();
-  const isJson = (item as any).dataType?.toLowerCase().includes("json");
-  if (!isJson) return <>{children}</>;
-
-  // ID ID: connId:db:dbName:schema:schemaName:table:tableName:column:columnName
-  const parts = item.id.split(":column:");
-  const colName = parts[1];
-  const tablePath = parts[0];
-
-  const tableParts = tablePath.split(":table:");
-  const tableName = tableParts[1];
-  const schemaPath = tableParts[0];
-
-  const schemaParts = schemaPath.split(":schema:");
-  const schemaName = schemaParts[1];
-  const dbPath = schemaParts[0];
-  const connId = dbPath.includes(":db:") ? dbPath.split(":db:")[0] : dbPath;
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger className="flex items-center w-full">
-        {children}
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem
-          onSelect={(e) => {
-            e.stopPropagation();
-            globalThis.dispatchEvent(
-              new CustomEvent("usql:open-jsonb-schema-map", {
-                detail: {
-                  connectionId: connId,
-                  schema: schemaName,
-                  table: tableName,
-                  column: colName,
-                },
-              }),
-            );
-          }}
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <FileJson className="mr-2 h-4 w-4 text-violet-500" />
-          {t("mapJsonbSchema")}
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  );
-}
 
 function getColumnTypeIcon(dataType: string) {
   const t = dataType.toLowerCase();
@@ -353,7 +290,7 @@ export const SidebarItem = React.memo(
     }
 
     if (item.id.includes(":column:")) {
-      return <ColumnContextMenu item={item}>{content}</ColumnContextMenu>;
+      return content;
     }
 
     return content;

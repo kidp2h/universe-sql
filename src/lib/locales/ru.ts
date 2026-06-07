@@ -92,6 +92,27 @@ const ru = {
   iterationsLabel: "Итерации:",
   iterationsDesc:
     "(По умолчанию 10, максимум 50 запусков для поиска идеального среднего)",
+  executionTiming: "Время выполнения",
+  configureConnection: "1. Настройка подключения",
+  inputQueries: "2. Ввод запросов",
+  executionOptions: "3. Параметры выполнения",
+  comparisonOutput: "4. Результат сравнения",
+  tabComparisonView: "Режим сравнения",
+  tabInputA: "Запрос A (Исходный)",
+  tabInputB: "Запрос B (Оптимизированный)",
+  keyColLabelRefined: "Уникальный ключ:",
+  keyColDescRefined: "Уникальный ключ (для выравнивания строк, напр. 'id')",
+  rowLimitTooltip:
+    "Ограничить максимальное количество строк для защиты памяти веб-клиента",
+  keyColTooltip:
+    "Укажите столбец с уникальными значениями для выравнивания строк",
+  performanceSummary: "Сводка производительности",
+  dataDiffGrid: "Сетка различий данных",
+  difference: "Разница",
+  rowCount: "Количество строк",
+  mismatchCount: "Обнаружено {{count}} несоответствующих строк",
+  editor: "Редактор",
+  layout: "Макет",
   reset: "Сбросить",
   startBenchmark: "Начать тестирование",
   benchmarking: "Тестирование запросов...",
@@ -511,9 +532,6 @@ const ru = {
   shortcutToggleSidebar: "Переключить боковую панель",
   shortcutToggleTheme: "Переключить темную/светлую тему",
   shortcutCommandPalette: "Палитра команд",
-  recentQueriesTitle: "Недавние запросы",
-  recentQueriesDesc:
-    "Быстрое восстановление недавно выполненных запросов в рабочей области.",
   noRecentQueries: "Истории запросов пока нет.",
 
   // Dump Database Tool
@@ -546,10 +564,38 @@ const ru = {
   postgresOnlyWarning:
     "Функция резервного копирования базы данных в настоящее время поддерживает только подключения PostgreSQL, использующие pg_dump.",
   restoringYourWorkspace: "Восстановление вашего рабочего пространства...",
-  disableGpuLabel: "Отключить аппаратное ускорение (GPU)",
+  disableGpuLabel: "Выключить аппаратное ускорение (GPU)",
   disableGpuDesc:
-    "Отключите аппаратное ускорение, чтобы решить проблемы с производительностью графики.",
+    "Отключает аппаратное ускорение для решения проблем, связанных с производительностью графики.",
   relaunchApp: "Перезапустить",
+
+  // Конструктор баз данных и настройки
+  toolDbDesignerName: "Конструктор БД",
+  toolDbDesignerDesc: "Визуальное проектирование таблиц и связей",
+  dbDesignerTitle: "Конструктор баз данных",
+  dbDesignerDesc:
+    "Визуальное проектирование таблиц и столбцов, создание связей и генерация схем SQL.",
+  editorFontSize: "Размер шрифта редактора",
+  editorFontSizeDesc: "Настройка размера шрифта в редакторе запросов.",
+  viewJsonTitle: "Просмотр JSON",
+  viewJsonDesc: "Форматированный просмотрщик JSON",
+  addTable: "Добавить таблицу",
+  tableName: "Имя таблицы",
+  addColumn: "Добавить столбец",
+  columnName: "Имя столбца",
+  dataType: "Тип данных",
+  isPrimary: "Первичный ключ (PK)",
+  isNullable: "Допускает null",
+  generatedSql: "Сгенерированный SQL DDL",
+  deleteTable: "Удалить таблицу",
+  deleteColumn: "Удалить столбец",
+  tableAdded: "Таблица добавлена на холст дизайнера!",
+  canvasCleared: "Холст успешно очищен.",
+  selfReferenceWarning: "Самореферентные соединения не поддерживаются.",
+  copiedLabel: "Скопировано",
+  noColumnsDefined: "Колонки не определены. Нажмите Изменить, чтобы добавить.",
+  placeholderTableName: "имя_таблицы",
+  placeholderColumnName: "имя_колонки",
 };
 
 export default ru;

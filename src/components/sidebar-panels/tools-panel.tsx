@@ -4,12 +4,11 @@ import {
   Zap,
   GitCompare,
   Sparkles,
-  FileJson,
   Wrench,
-  BookOpen,
   Workflow,
   Network,
   Download,
+  Database,
 } from "lucide-react";
 import { useTabStore } from "@/stores/tab-store";
 import { cn } from "@/lib/utils";
@@ -28,16 +27,6 @@ export function ToolsPanel() {
 
   const toolsList = [
     {
-      id: "benchmark",
-      nameKey: "toolBenchmarkName",
-      descriptionKey: "toolBenchmarkDesc",
-      icon: Zap,
-      colorClass: "text-indigo-500",
-      bgClass: "bg-indigo-500/10",
-      borderClass: "border-indigo-500/20 hover:border-indigo-500/35",
-      activeBorderClass: "border-indigo-500/50",
-    },
-    {
       id: "diff-optimizer",
       nameKey: "toolDiffName",
       descriptionKey: "toolDiffDesc",
@@ -48,34 +37,14 @@ export function ToolsPanel() {
       activeBorderClass: "border-sky-500/50",
     },
     {
-      id: "history-snippets",
-      nameKey: "toolHistoryName",
-      descriptionKey: "toolHistoryDesc",
-      icon: Sparkles,
-      colorClass: "text-brand",
-      bgClass: "bg-brand/10",
-      borderClass: "border-brand/20 hover:border-brand/35",
-      activeBorderClass: "border-brand/50",
-    },
-    {
-      id: "jsonb-schema-map",
-      nameKey: "toolJsonbName",
-      descriptionKey: "toolJsonbDesc",
-      icon: FileJson,
-      colorClass: "text-teal-500",
-      bgClass: "bg-teal-500/10",
-      borderClass: "border-teal-500/20 hover:border-teal-500/35",
-      activeBorderClass: "border-teal-500/50",
-    },
-    {
-      id: "sql-reference",
-      nameKey: "toolSqlRefName",
-      descriptionKey: "toolSqlRefDesc",
-      icon: BookOpen,
-      colorClass: "text-orange-500",
-      bgClass: "bg-orange-500/10",
-      borderClass: "border-orange-500/20 hover:border-orange-500/35",
-      activeBorderClass: "border-orange-500/50",
+      id: "db-designer",
+      nameKey: "toolDbDesignerName",
+      descriptionKey: "toolDbDesignerDesc",
+      icon: Database,
+      colorClass: "text-violet-500",
+      bgClass: "bg-violet-500/10",
+      borderClass: "border-violet-500/20 hover:border-violet-500/35",
+      activeBorderClass: "border-violet-500/50",
     },
     {
       id: "visual-query-story",

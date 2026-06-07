@@ -7,11 +7,8 @@ export type QueryTabIcon =
   | "schema"
   | "table"
   | "query"
-  | "benchmark"
   | "diff-optimizer"
-  | "history-snippets"
-  | "jsonb-schema-map"
-  | "sql-reference"
+  | "db-designer"
   | "visual-query-story"
   | "erd"
   | "database-dump";
@@ -35,11 +32,8 @@ export type QueryTab = {
   filePath?: string;
   type?:
     | "sql"
-    | "benchmark"
     | "diff-optimizer"
-    | "history-snippets"
-    | "jsonb-schema-map"
-    | "sql-reference"
+    | "db-designer"
     | "visual-query-story"
     | "erd"
     | "database-dump";
@@ -75,11 +69,8 @@ type TabState = {
   }) => void;
   openToolTab: (
     toolType:
-      | "benchmark"
       | "diff-optimizer"
-      | "history-snippets"
-      | "jsonb-schema-map"
-      | "sql-reference"
+      | "db-designer"
       | "visual-query-story"
       | "erd"
       | "database-dump",
@@ -390,25 +381,13 @@ export const useTabStore = create<TabState>()(
           let title = "";
           let icon: QueryTabIcon = "query";
           switch (toolType) {
-            case "benchmark":
-              title = "Benchmark";
-              icon = "benchmark";
-              break;
             case "diff-optimizer":
               title = "Query Diff";
               icon = "diff-optimizer";
               break;
-            case "history-snippets":
-              title = "History & Snippets";
-              icon = "history-snippets";
-              break;
-            case "jsonb-schema-map":
-              title = "JSONB Schema Map";
-              icon = "jsonb-schema-map";
-              break;
-            case "sql-reference":
-              title = "SQL Reference";
-              icon = "sql-reference";
+            case "db-designer":
+              title = "Database Designer";
+              icon = "db-designer";
               break;
             case "visual-query-story":
               title = "Query Story";

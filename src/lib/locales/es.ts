@@ -92,6 +92,27 @@ const es = {
   iterationsLabel: "Iteraciones:",
   iterationsDesc:
     "(El valor predeterminado es 10, máximo 50 ejecuciones para encontrar el promedio perfecto)",
+  executionTiming: "Tiempo de ejecución",
+  configureConnection: "1. Configurar conexión",
+  inputQueries: "2. Introducir consultas",
+  executionOptions: "3. Opciones de ejecución",
+  comparisonOutput: "4. Resultado de la comparación",
+  tabComparisonView: "Vista de comparación",
+  tabInputA: "Consulta A (Original)",
+  tabInputB: "Consulta B (Optimizada)",
+  keyColLabelRefined: "Clave única:",
+  keyColDescRefined: "Clave única (para alinear filas, ej. 'id')",
+  rowLimitTooltip:
+    "Limitar el número máximo de filas devueltas para proteger la memoria del frontend",
+  keyColTooltip:
+    "Especifique una columna que contenga valores únicos para alinear las filas correspondientes",
+  performanceSummary: "Resumen de rendimiento",
+  dataDiffGrid: "Cuadrícula de diferencias",
+  difference: "Diferencia",
+  rowCount: "Número de filas",
+  mismatchCount: "Se detectaron {{count}} filas discrepantes",
+  editor: "Editor",
+  layout: "Diseño",
   reset: "Restablecer",
   startBenchmark: "Iniciar referencia",
   benchmarking: "Evaluando consultas...",
@@ -557,6 +578,35 @@ const es = {
   disableGpuDesc:
     "Desactiva la aceleración por hardware para solucionar problemas relacionados con el rendimiento gráfico.",
   relaunchApp: "Reiniciar",
+
+  // Diseñador de Base de Datos y ajustes
+  toolDbDesignerName: "Diseñador de CSDL",
+  toolDbDesignerDesc: "Diseñe tablas visualmente y dibuje relaciones",
+  dbDesignerTitle: "Diseñador de Base de Datos",
+  dbDesignerDesc:
+    "Diseñe tablas y columnas visualmente, dibuje relaciones y genere esquemas SQL.",
+  editorFontSize: "Tamaño de fuente del editor",
+  editorFontSizeDesc: "Ajuste el tamaño de fuente del editor de consultas.",
+  viewJsonTitle: "Ver JSON",
+  viewJsonDesc: "Visor JSON formateado",
+  addTable: "Agregar tabla",
+  tableName: "Nombre de tabla",
+  addColumn: "Agregar columna",
+  columnName: "Nombre de columna",
+  dataType: "Tipo de datos",
+  isPrimary: "Clave primaria (PK)",
+  isNullable: "Permite nulos",
+  generatedSql: "SQL DDL generado",
+  deleteTable: "Eliminar tabla",
+  deleteColumn: "Eliminar columna",
+  tableAdded: "¡Tabla agregada al lienzo de diseño!",
+  canvasCleared: "Lienzo limpiado con éxito.",
+  selfReferenceWarning: "No se admiten conexiones auto-referenciadas.",
+  copiedLabel: "Copiado",
+  noColumnsDefined:
+    "No hay columnas definidas. Haz clic en Editar para agregar.",
+  placeholderTableName: "nombre_tabla",
+  placeholderColumnName: "nombre_columna",
 };
 
 export default es;

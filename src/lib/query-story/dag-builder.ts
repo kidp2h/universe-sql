@@ -37,14 +37,14 @@ export function buildLayoutedGraph(
   const g = new dagre.graphlib.Graph();
   g.setGraph({
     rankdir: direction,
-    nodesep: 50,
-    ranksep: 70,
+    nodesep: 60,
+    ranksep: 120,
     marginx: 40,
     marginy: 40,
   });
   g.setDefaultEdgeLabel(() => ({}));
 
-  const nodeWidth = 260;
+  const nodeWidth = 300;
   const nodeHeight = 85;
 
   // Add nodes to dagre

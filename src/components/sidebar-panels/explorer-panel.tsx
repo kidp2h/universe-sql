@@ -178,6 +178,7 @@ export function ExplorerPanel() {
                       isForeign: col.isForeign,
                       dataType: col.dataType,
                       references: col.references,
+                      comment: col.comment || null,
                     })),
                   },
                   {
@@ -291,6 +292,7 @@ export function ExplorerPanel() {
                       isForeign: col.isForeign,
                       dataType: col.dataType,
                       references: col.references,
+                      comment: col.comment || null,
                     })),
                   },
                   {
@@ -504,6 +506,7 @@ export function ExplorerPanel() {
                         isForeign: col.isForeign,
                         dataType: col.dataType,
                         references: col.references,
+                        comment: col.comment || null,
                       })),
                     },
                     {

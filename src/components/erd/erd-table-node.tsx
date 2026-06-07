@@ -50,7 +50,8 @@ export function ERDTableNode({ data, selected }: ERDTableNodeProps) {
                 type="target"
                 position={Position.Left}
                 id={`${data.schema}.${data.tableName}-${col.name}-target`}
-                className="w-2 h-2 !bg-blue-500 !border-2 !border-background -ml-[19px]"
+                className="!w-[7px] !h-[7px] !bg-blue-500 !border-[1.5px] !border-background hover:scale-125 transition-transform"
+                style={{ left: "-8px" }}
               />
             )}
 
@@ -88,7 +89,8 @@ export function ERDTableNode({ data, selected }: ERDTableNodeProps) {
                 type="source"
                 position={Position.Right}
                 id={`${data.schema}.${data.tableName}-${col.name}-source`}
-                className="w-2 h-2 !bg-muted-foreground !border-2 !border-background -mr-[19px] opacity-0 group-hover:opacity-100 transition-opacity"
+                className="!w-[7px] !h-[7px] !bg-muted-foreground !border-[1.5px] !border-background opacity-0 group-hover:opacity-100 hover:scale-125 transition-all"
+                style={{ right: "-8px" }}
               />
             )}
           </div>

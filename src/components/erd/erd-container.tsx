@@ -31,6 +31,16 @@ export function ERDContainer() {
     string | undefined
   >(contextConnId || activeConnection?.id);
 
+  const selectedConnection = React.useMemo(() => {
+    return connections.find((c) => c.id === selectedConnId) || null;
+  }, [connections, selectedConnId]);
+
+  const [databases, setDatabases] = React.useState<string[]>([]);
+  const [selectedDb, setSelectedDb] = React.useState<string | undefined>(
+    undefined,
+  );
+  const [loadingDbs, setLoadingDbs] = React.useState(false);
+
   // Sync local selected connection with active connection or context if changed/not set
   React.useEffect(() => {
     if (contextConnId) {
@@ -40,8 +50,59 @@ export function ERDContainer() {
     }
   }, [activeConnection, selectedConnId, contextConnId]);
 
-  const { tables, relations, isLoading, error, fetchSchema } =
-    useErdSchema(selectedConnId);
+  // Reset/Fetch databases when connection changes
+  React.useEffect(() => {
+    if (!selectedConnection) {
+      setDatabases([]);
+      setSelectedDb(undefined);
+      return;
+    }
+
+    setSelectedDb(selectedConnection.database);
+    setDatabases([selectedConnection.database]);
+
+    const fetchDbs = async () => {
+      if (selectedConnection.dbType !== "postgres") {
+        return;
+      }
+
+      setLoadingDbs(true);
+      try {
+        const res = await window.electron.executeQuery({
+          dbType: selectedConnection.dbType,
+          host: selectedConnection.host,
+          port: String(selectedConnection.port),
+          database: selectedConnection.database,
+          username: selectedConnection.username,
+          password: selectedConnection.password,
+          ssl: selectedConnection.ssl,
+          readOnly: selectedConnection.readOnly,
+          name: selectedConnection.name,
+          sql: "SELECT datname FROM pg_database WHERE datistemplate = false AND datallowconn = true ORDER BY datname;",
+        });
+        if (res.ok && res.rows) {
+          const dbNames = res.rows.map((row: any) => row.datname);
+          setDatabases(dbNames);
+          if (dbNames.includes(selectedConnection.database)) {
+            setSelectedDb(selectedConnection.database);
+          } else if (dbNames.length > 0) {
+            setSelectedDb(dbNames[0]);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to query databases for ERD:", err);
+      } finally {
+        setLoadingDbs(false);
+      }
+    };
+
+    fetchDbs();
+  }, [selectedConnId, selectedConnection]);
+
+  const { tables, relations, isLoading, error, fetchSchema } = useErdSchema(
+    selectedConnId,
+    selectedDb,
+  );
 
   React.useEffect(() => {
     fetchSchema();
@@ -66,43 +127,86 @@ export function ERDContainer() {
           </p>
         </div>
 
-        {/* Connection Selector */}
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
-            {t("erdConnectionLabel")}
-          </span>
-          <Select
-            value={selectedConnId || ""}
-            onValueChange={(val) => setSelectedConnId(val || undefined)}
-          >
-            <SelectTrigger className="h-8 min-w-[200px] text-sm font-semibold bg-background">
-              <SelectValue placeholder={t("erdSelectConnectionPlaceholder")} />
-            </SelectTrigger>
-            <SelectContent>
-              {connections.map((conn) => (
-                <SelectItem key={conn.id} value={conn.id} className="text-sm">
-                  <div className="flex items-center gap-2 leading-none">
-                    <Database className="size-3.5 text-indigo-500 shrink-0" />
-                    <span className="font-semibold text-foreground text-sm leading-none flex items-center">
-                      {conn.name}
-                    </span>
-                    <span className="text-[10px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded shrink-0 font-mono leading-none flex items-center">
-                      {conn.database}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-              {connections.length === 0 && (
-                <SelectItem
-                  value="_empty"
-                  disabled
-                  className="text-sm italic text-muted-foreground"
-                >
-                  {t("erdNoConnections")}
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+        {/* Selectors */}
+        <div className="flex items-center gap-4 shrink-0">
+          {/* Connection Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
+              {t("erdConnectionLabel")}
+            </span>
+            <Select
+              value={selectedConnId || ""}
+              onValueChange={(val) => setSelectedConnId(val || undefined)}
+            >
+              <SelectTrigger className="h-8 min-w-[180px] text-sm font-semibold bg-background rounded-lg border-muted-foreground/20 hover:border-muted-foreground/30 transition-colors">
+                <SelectValue
+                  placeholder={t("erdSelectConnectionPlaceholder")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {connections.map((conn) => (
+                  <SelectItem key={conn.id} value={conn.id} className="text-sm">
+                    <div className="flex items-center gap-2 leading-none">
+                      <Database className="size-3.5 text-indigo-500 shrink-0" />
+                      <span className="font-semibold text-foreground text-sm leading-none flex items-center">
+                        {conn.name}
+                      </span>
+                      <span className="text-[10px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded shrink-0 font-mono leading-none flex items-center">
+                        {conn.database}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+                {connections.length === 0 && (
+                  <SelectItem
+                    value="_empty"
+                    disabled
+                    className="text-sm italic text-muted-foreground"
+                  >
+                    {t("erdNoConnections")}
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Database Selector */}
+          {selectedConnection && (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
+              <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
+                {t("selectDatabase")}
+              </span>
+              <Select
+                value={selectedDb || ""}
+                onValueChange={(val) => setSelectedDb(val)}
+                disabled={databases.length <= 1}
+              >
+                <SelectTrigger className="h-8 min-w-[150px] max-w-[200px] text-sm font-semibold bg-background rounded-lg border-muted-foreground/20 hover:border-muted-foreground/30 transition-colors">
+                  {loadingDbs ? (
+                    <div className="flex items-center gap-1.5">
+                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground font-normal italic">
+                        Loading...
+                      </span>
+                    </div>
+                  ) : (
+                    <SelectValue placeholder={t("selectDatabase")} />
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {databases.map((db) => (
+                    <SelectItem
+                      key={db}
+                      value={db}
+                      className="text-sm font-mono"
+                    >
+                      {db}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </div>
 

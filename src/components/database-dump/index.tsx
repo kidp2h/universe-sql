@@ -364,8 +364,7 @@ export function DatabaseDumpPage() {
         >
           {/* Left Side: Export configurations and settings panel */}
           <ResizablePanel
-            defaultSize={20}
-            maxSize={500}
+            defaultSize={30}
             className="flex flex-col bg-background min-w-[240px]"
           >
             {/* Panel Title */}
@@ -600,7 +599,7 @@ export function DatabaseDumpPage() {
 
           {/* Right Side: Select Tables pane */}
           <ResizablePanel
-            defaultSize={60}
+            defaultSize={70}
             className="flex flex-col min-w-0 h-full relative bg-muted/5"
           >
             {!selectedConnection ? (

@@ -1,9 +1,8 @@
-import { PanelLeft, ZoomIn, ZoomOut, RotateCcw, Sun, Moon } from "lucide-react";
+import { PanelLeft, Sun, Moon } from "lucide-react";
 import { CommandGroup } from "@/components/ui/command";
 import { AppCommandItem as CommandItem } from "./app-command-item";
 import { useTheme } from "@/hooks/use-theme";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useGlobalEvents } from "@/hooks/use-global-events";
 import { Shortcut } from "../ui/kbd";
 
 interface ViewCommandGroupProps {
@@ -12,7 +11,6 @@ interface ViewCommandGroupProps {
 
 export function ViewCommandGroup({ setOpen }: ViewCommandGroupProps) {
   const { toggleSidebar } = useSidebar();
-  const { dispatchAppearance } = useGlobalEvents();
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -26,36 +24,6 @@ export function ViewCommandGroup({ setOpen }: ViewCommandGroupProps) {
         <PanelLeft className="size-4 text-sky-500 mr-2" />
         Toggle Sidebar
         <Shortcut shortcut="⌘ + B" />
-      </CommandItem>
-      <CommandItem
-        setOpen={setOpen}
-        onSelect={() => {
-          dispatchAppearance("zoom-in");
-        }}
-      >
-        <ZoomIn className="size-4 text-brand mr-2" />
-        Increase Font Size
-        <Shortcut shortcut="⌘ + Mouse Up" />
-      </CommandItem>
-      <CommandItem
-        setOpen={setOpen}
-        onSelect={() => {
-          dispatchAppearance("zoom-out");
-        }}
-      >
-        <ZoomOut className="size-4 text-orange-500 mr-2" />
-        Decrease Font Size
-        <Shortcut shortcut="⌘ + Mouse Down" />
-      </CommandItem>
-      <CommandItem
-        setOpen={setOpen}
-        onSelect={() => {
-          dispatchAppearance("zoom-reset");
-        }}
-      >
-        <RotateCcw className="size-4 text-slate-500 mr-2" />
-        Reset Font Size
-        <Shortcut shortcut="⌘ + 0" />
       </CommandItem>
       <CommandItem
         setOpen={setOpen}

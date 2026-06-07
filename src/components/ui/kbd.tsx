@@ -1,8 +1,12 @@
 import * as React from "react";
-import { Command, Option, ArrowUp, ArrowDown } from "lucide-react";
+import { Command, Option, ArrowUp, ArrowDown, ChevronUp } from "lucide-react";
 import { MdKeyboardReturn } from "react-icons/md";
 import { cn } from "@/lib/utils";
 import { BsShift } from "react-icons/bs";
+
+const isMac =
+  typeof window !== "undefined" &&
+  /Mac|iPad|iPhone|iPod/.test(window.navigator.userAgent);
 
 function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
   return (
@@ -48,19 +52,25 @@ function Shortcut({
         switch (symbol.toUpperCase()) {
           case "⌘":
           case "CMD":
-            content = <Command className="!size-3" />;
+          case "META":
+          case "SUPER":
+            content = isMac ? (
+              <Command className="!size-3" />
+            ) : (
+              <ChevronUp className="!size-3" />
+            );
             break;
           case "⌥":
           case "ALT":
           case "OPT":
-            content = <Option className="!size-3" />;
+            content = isMac ? <Option className="!size-3" /> : "Alt";
             break;
           case "⇧":
           case "SHIFT":
             content = <BsShift className="!size-3" />;
             break;
           case "CTRL":
-            content = "Ctrl";
+            content = <ChevronUp className="!size-3" />;
             break;
           case "MOUSE UP":
             content = <ArrowUp className="!size-3" />;

@@ -1,4 +1,4 @@
-import { Wrench, FileJson, TableProperties } from "lucide-react";
+import { Wrench, TableProperties } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -58,25 +58,6 @@ export function TableContextMenu({
         >
           <Wrench className="mr-2 h-4 w-4" />
           {t("modifyTable")}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={(e) => {
-            e.stopPropagation();
-            globalThis.dispatchEvent(
-              new CustomEvent("usql:open-jsonb-schema-map", {
-                detail: {
-                  connectionId: connId,
-                  schema: schemaName,
-                  table: tableName,
-                },
-              }),
-            );
-          }}
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <FileJson className="mr-2 h-4 w-4 text-violet-500" />
-          {t("mapJsonbSchema")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem

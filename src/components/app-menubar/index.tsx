@@ -5,6 +5,8 @@ import { useGlobalEvents } from "@/hooks/use-global-events";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "react-i18next";
 import { useTabStore } from "@/stores/tab-store";
+import { useSidebar } from "@/components/ui/sidebar";
+import { useQueryResultsStore } from "@/stores/query-results-store";
 import { Info, RefreshCw, LogOut, Terminal, Code2 } from "lucide-react";
 import {
   Menubar,
@@ -32,6 +34,12 @@ export function AppMenubar() {
   const activeTab = queryTabs.find((t) => t.id === activeQueryTabId);
   const isQueryTabActive =
     !!activeTab && (!activeTab.type || activeTab.type === "sql");
+
+  const { showResultsPanel } = useSidebar();
+  const resultsByTab = useQueryResultsStore((state) => state.resultsByTab);
+  const results = activeQueryTabId ? resultsByTab[activeQueryTabId] : [];
+  const hasResults = results && results.length > 0;
+  const canExport = isQueryTabActive && showResultsPanel && hasResults;
 
   // New query
   useKeyboard({
@@ -135,15 +143,6 @@ export function AppMenubar() {
     onKeyDown: () => dispatchCommand("format"),
   });
 
-  // Benchmark
-  useKeyboard({
-    key: "b",
-    ctrlKey: true,
-    metaKey: true,
-    shiftKey: true,
-    onKeyDown: () => dispatchCommand("benchmark"),
-  });
-
   // Diff & Optimizer
   useKeyboard({
     key: "d",
@@ -153,31 +152,13 @@ export function AppMenubar() {
     onKeyDown: () => dispatchCommand("diff-optimizer"),
   });
 
-  // History & Snippets Catalog
+  // Database Designer
   useKeyboard({
-    key: "h",
+    key: "e",
     ctrlKey: true,
     metaKey: true,
     shiftKey: true,
-    onKeyDown: () => dispatchCommand("open-history-snippets"),
-  });
-
-  // JSONB Document Schema Map
-  useKeyboard({
-    key: "m",
-    ctrlKey: true,
-    metaKey: true,
-    shiftKey: true,
-    onKeyDown: () => dispatchCommand("jsonb-schema-map"),
-  });
-
-  // SQL Reference Library
-  useKeyboard({
-    key: "r",
-    ctrlKey: true,
-    metaKey: true,
-    shiftKey: true,
-    onKeyDown: () => dispatchCommand("sql-reference"),
+    onKeyDown: () => dispatchCommand("db-designer"),
   });
 
   // Open command palette (Ctrl+Shift+P)
@@ -196,7 +177,7 @@ export function AppMenubar() {
     metaKey: true,
     shiftKey: true,
     onKeyDown: () => {
-      if (isQueryTabActive) {
+      if (canExport) {
         dispatchCommand("result-export-csv");
       }
     },
@@ -209,7 +190,7 @@ export function AppMenubar() {
     metaKey: true,
     shiftKey: true,
     onKeyDown: () => {
-      if (isQueryTabActive) {
+      if (canExport) {
         dispatchCommand("result-export-json");
       }
     },

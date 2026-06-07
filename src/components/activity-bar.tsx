@@ -36,7 +36,10 @@ export function ActivityBar() {
   // Track last active tool tab ID in localStorage
   React.useEffect(() => {
     if (activeQueryTabId && activeToolType && activeToolType !== "sql") {
-      window.localStorage.setItem("usql:last-active-tool-tab-id", activeQueryTabId);
+      window.localStorage.setItem(
+        "usql:last-active-tool-tab-id",
+        activeQueryTabId,
+      );
     }
   }, [activeQueryTabId, activeToolType]);
 
@@ -53,18 +56,25 @@ export function ActivityBar() {
     if (tab === "tools") {
       const isToolActive = activeToolType && activeToolType !== "sql";
       if (!isToolActive) {
-        const lastId = typeof window !== "undefined" ? window.localStorage.getItem("usql:last-active-tool-tab-id") : null;
-        const existingToolTab = lastId ? queryTabs.find((t) => t.id === lastId) : null;
+        const lastId =
+          typeof window !== "undefined"
+            ? window.localStorage.getItem("usql:last-active-tool-tab-id")
+            : null;
+        const existingToolTab = lastId
+          ? queryTabs.find((t) => t.id === lastId)
+          : null;
         if (existingToolTab) {
           updateActiveQueryTabId(existingToolTab.id);
         } else {
           // Fallback to any tool tab if the last active one is no longer in queryTabs
-          const fallbackToolTab = queryTabs.find((t) => t.type && t.type !== "sql");
+          const fallbackToolTab = queryTabs.find(
+            (t) => t.type && t.type !== "sql",
+          );
           if (fallbackToolTab) {
             updateActiveQueryTabId(fallbackToolTab.id);
           } else {
             // Open default/first tool tab
-            useTabStore.getState().openToolTab("benchmark");
+            useTabStore.getState().openToolTab("diff-optimizer");
           }
         }
       }
@@ -114,9 +124,9 @@ export function ActivityBar() {
 
   const renderItem = (item: (typeof topItems)[0]) => {
     // A tab is active if it matches activeTab and sidebar is open, or if it is "tools" and a fullscreen tool is currently active
-    const isSelected =
-      (item.id === "tools" && !!activeToolType) ||
-      (activeTab === item.id && open);
+    const isSelected = open
+      ? activeTab === item.id
+      : item.id === "tools" && !!activeToolType;
     const Icon = item.icon;
 
     return (

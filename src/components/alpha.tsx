@@ -16,6 +16,9 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 import { useQueryHistoryStore } from "@/stores/query-history-store";
 import { useTabStore } from "@/stores/tab-store";
 import { useSidebarStore } from "@/stores/sidebar-store";
+import { useSidebar } from "@/components/ui/sidebar";
+import { useTheme } from "@/hooks/use-theme";
+import { events as globalEvents } from "@/lib/events";
 import * as React from "react";
 
 export function Alpha() {
@@ -24,6 +27,8 @@ export function Alpha() {
   const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
   const setQuerySql = useTabStore((state) => state.setQuerySql);
   const openSqlTab = useTabStore((state) => state.openSqlTab);
+  const { toggleSidebar } = useSidebar();
+  const { toggleTheme } = useTheme();
 
   const handleApply = React.useCallback(
     (sql: string) => {
@@ -46,6 +51,7 @@ export function Alpha() {
       icon: FolderOpen,
       color: "text-sky-500 bg-sky-500/10 border-sky-500/20 dark:bg-sky-500/5",
       shortcut: "⌘ + O",
+      onClick: () => globalEvents.dispatchCommand("open-file"),
     },
     {
       label: t("shortcutNewQuery"),
@@ -53,6 +59,7 @@ export function Alpha() {
       color:
         "text-purple-500 bg-purple-500/10 border-purple-500/20 dark:bg-purple-500/5",
       shortcut: "⌘ + N",
+      onClick: () => globalEvents.dispatchCommand("new-query"),
     },
     {
       label: t("shortcutToggleSidebar"),
@@ -60,6 +67,7 @@ export function Alpha() {
       color:
         "text-blue-500 bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/5",
       shortcut: "⌘ + B",
+      onClick: () => toggleSidebar(),
     },
     {
       label: t("shortcutToggleTheme"),
@@ -67,6 +75,7 @@ export function Alpha() {
       color:
         "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 dark:bg-emerald-500/5",
       shortcut: "⌘ + ⇧ + D",
+      onClick: () => toggleTheme(),
     },
     {
       label: t("shortcutCommandPalette"),
@@ -74,18 +83,19 @@ export function Alpha() {
       color:
         "text-rose-500 bg-rose-500/10 border-rose-500/20 dark:bg-rose-500/5",
       shortcut: "⌘ + ⇧ + P",
+      onClick: () => globalEvents.dispatchCommand("open-command-palette"),
     },
   ];
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center select-none bg-gradient-to-b from-background via-background/98 to-brand/2 overflow-hidden py-10">
+    <div className="relative flex h-full w-full items-center justify-center select-none bg-gradient-to-b from-background via-background/98 to-brand/2 overflow-hidden py-6">
       {/* Background ambient glowing details */}
       <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-brand/5 rounded-full blur-[130px] opacity-45 pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[550px] h-[550px] bg-indigo-500/5 rounded-full blur-[130px] opacity-45 pointer-events-none" />
 
       <div className="w-[92%] max-w-4xl flex flex-col justify-center items-center relative z-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
         {/* App Logo with ambient glow */}
-        <div className="relative mb-6 flex items-center justify-center size-24 bg-gradient-to-br from-brand/15 via-brand/5 to-teal-500/15 rounded-3xl border border-brand/20 shadow-xl overflow-hidden group hover:border-brand/40 transition-all duration-500 hover:shadow-brand/5">
+        <div className="relative mb-4 mt-10 flex items-center justify-center size-20 bg-gradient-to-br from-brand/15 via-brand/5 to-teal-500/15 rounded-3xl border border-brand/20 shadow-xl overflow-hidden group hover:border-brand/40 transition-all duration-500 hover:shadow-brand/5">
           <div className="absolute -inset-10 bg-brand/10 rounded-full blur-2xl opacity-70 group-hover:opacity-100 transition-opacity" />
           <div className="absolute inset-0 bg-white/5 rounded-3xl" />
           <img
@@ -96,7 +106,7 @@ export function Alpha() {
         </div>
 
         {/* Brand details */}
-        <div className="flex flex-col justify-center items-center text-center max-w-md mb-10">
+        <div className="flex flex-col justify-center items-center text-center max-w-md mb-6">
           <h2 className="text-2xl font-black tracking-tight mb-2 bg-gradient-to-r from-foreground via-foreground/90 to-foreground/75 bg-clip-text text-transparent">
             {t("welcomeTitle")}
           </h2>
@@ -108,35 +118,37 @@ export function Alpha() {
         {/* Two-Column Workspace Layout */}
         <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           {/* LEFT COLUMN: Shortcuts Action Cards */}
-          <div className="flex flex-col gap-3.5 w-full">
+          <div className="flex flex-col gap-2 w-full">
             {actions.map((act, index) => {
               const Icon = act.icon;
               return (
-                <div
+                <button
                   key={index}
-                  className="group relative flex items-center justify-between p-3.5 rounded-2xl bg-card/25 backdrop-blur-md border border-border/50 hover:bg-card/45 hover:border-brand/35 transition-all duration-300 shadow-xs hover:shadow-md hover:shadow-brand/2"
+                  type="button"
+                  onClick={act.onClick}
+                  className="group relative w-full flex items-center justify-between p-2.5 rounded-xl bg-card/25 backdrop-blur-md border border-border/50 hover:bg-card/45 hover:border-brand/35 transition-all duration-300 shadow-xs hover:shadow-md hover:shadow-brand/2 cursor-pointer active:scale-[0.98] text-left"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5">
                     <div
                       className={cn(
-                        "p-2 rounded-xl border shrink-0 transition-transform group-hover:scale-105",
+                        "p-1.5 rounded-lg border shrink-0 transition-transform group-hover:scale-105",
                         act.color,
                       )}
                     >
-                      <Icon className="size-4.5" />
+                      <Icon className="size-4" />
                     </div>
-                    <span className="text-sm text-foreground/85 font-bold group-hover:text-foreground transition-colors">
+                    <span className="text-sm text-foreground/85 font-semibold group-hover:text-foreground transition-colors">
                       {act.label}
                     </span>
                   </div>
                   <Shortcut className="ml-auto pl-4" shortcut={act.shortcut} />
-                </div>
+                </button>
               );
             })}
           </div>
 
           {/* RIGHT COLUMN: Recently Executed Queries */}
-          <div className="flex flex-col gap-3.5 w-full h-full min-h-[300px]">
+          <div className="flex flex-col gap-3.5 w-full">
             <div className="flex flex-col gap-1.5 text-left mb-1 px-1">
               <h3 className="text-sm font-extrabold uppercase text-foreground/95 tracking-wider leading-none flex items-center gap-1.5">
                 <Clock className="size-4 text-brand animate-pulse" />
@@ -156,8 +168,8 @@ export function Alpha() {
                 </p>
               </div>
             ) : (
-              /* History Cards stack */
-              <div className="flex flex-col gap-2.5">
+              /* History Cards stack — scrollable */
+              <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[min(380px,calc(100vh-320px))] pr-1 scrollbar-thin">
                 {history.map((item) => {
                   const relativeTime = formatRelativeTime(item.executedAt);
                   const isSuccess = item.status === "success";

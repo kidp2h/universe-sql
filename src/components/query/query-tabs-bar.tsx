@@ -9,8 +9,6 @@ import {
   Zap,
   GitCompare,
   History,
-  FileJson,
-  BookOpen,
   Network,
   Download,
 } from "lucide-react";
@@ -51,12 +49,15 @@ export function QueryTabsBar() {
               icon: t.icon,
               type: t.type,
               isDirty: (t.savedSql ?? t.sql) !== t.sql,
-            }))
+            })),
         ),
-      []
-    )
+      [],
+    ),
   );
-  const tabs = React.useMemo(() => JSON.parse(tabsSerialized), [tabsSerialized]);
+  const tabs = React.useMemo(
+    () => JSON.parse(tabsSerialized),
+    [tabsSerialized],
+  );
   const activeTabId = useTabStore((state) => state.activeQueryTabId);
   const activeTab = useTabStore(
     useShallow((state) => {
@@ -321,16 +322,10 @@ export function QueryTabsBar() {
         return <Folder className="size-4 text-muted-foreground" />;
       case "connection":
         return <Database className="size-4 text-muted-foreground" />;
-      case "benchmark":
-        return <Zap className="size-4 text-indigo-400" />;
       case "diff-optimizer":
         return <GitCompare className="size-4 text-sky-400" />;
-      case "history-snippets":
-        return <History className="size-4 text-brand/80" />;
-      case "jsonb-schema-map":
-        return <FileJson className="size-4 text-teal-400" />;
-      case "sql-reference":
-        return <BookOpen className="size-4 text-orange-400" />;
+      case "db-designer":
+        return <Database className="size-4 text-violet-400" />;
       case "erd":
         return <Network className="size-4 text-emerald-400" />;
       case "database-dump":

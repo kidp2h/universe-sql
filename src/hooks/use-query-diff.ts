@@ -27,12 +27,14 @@ export type QueryDiffResult = {
     stats: DiffStats | null;
     columns: string[];
     rowCount: number;
+    plan: any | null;
   };
   queryB: {
     sql: string;
     stats: DiffStats | null;
     columns: string[];
     rowCount: number;
+    plan: any | null;
   };
   diffRows: RowDiff[];
   summary: {
@@ -191,7 +193,11 @@ function diffData(
   return { diffRows, summary };
 }
 
-export function useQueryDiff(open: boolean, customConnId?: string) {
+export function useQueryDiff(
+  open: boolean,
+  customConnId?: string,
+  selectedDatabase?: string,
+) {
   const { activeConnection: globalActiveConnection, connections } =
     useConnection();
   const activeConnection = React.useMemo(() => {
@@ -248,12 +254,14 @@ export function useQueryDiff(open: boolean, customConnId?: string) {
       }
     }
 
+    const dbToQuery = selectedDatabase || activeConnection.database;
+
     try {
       const res = await window.electron.executeQuery({
         dbType: activeConnection.dbType,
         host: activeConnection.host,
         port: String(activeConnection.port),
-        database: activeConnection.database,
+        database: dbToQuery,
         username: activeConnection.username,
         password: activeConnection.password,
         ssl: activeConnection.ssl,
@@ -280,18 +288,19 @@ export function useQueryDiff(open: boolean, customConnId?: string) {
 
   const executeExplainQuery = async (
     sql: string,
-  ): Promise<DiffStats | null> => {
+  ): Promise<{ stats: DiffStats; plan: any } | null> => {
     if (!activeConnection || !window.electron?.executeQuery) return null;
 
     // EXPLAIN ANALYZE for stats
     const explainSql = `EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) ${sql}`;
+    const dbToQuery = selectedDatabase || activeConnection.database;
 
     try {
       const res = await window.electron.executeQuery({
         dbType: activeConnection.dbType,
         host: activeConnection.host,
         port: String(activeConnection.port),
-        database: activeConnection.database,
+        database: dbToQuery,
         username: activeConnection.username,
         password: activeConnection.password,
         ssl: activeConnection.ssl,
@@ -324,12 +333,15 @@ export function useQueryDiff(open: boolean, customConnId?: string) {
             const sharedReadBlocks = rootNode?.["Shared Read Blocks"] ?? 0;
 
             return {
-              dbExecutionTime,
-              dbPlanningTime,
-              totalCost,
-              startupCost,
-              sharedHitBlocks,
-              sharedReadBlocks,
+              stats: {
+                dbExecutionTime,
+                dbPlanningTime,
+                totalCost,
+                startupCost,
+                sharedHitBlocks,
+                sharedReadBlocks,
+              },
+              plan: planObj,
             };
           }
         }
@@ -395,7 +407,7 @@ export function useQueryDiff(open: boolean, customConnId?: string) {
         total: totalSteps,
         stage: "Analyzing Query A Cost/Time...",
       });
-      const statsA = await executeExplainQuery(queryA);
+      const explainA = await executeExplainQuery(queryA);
 
       // Step 4: Run Explain B
       setProgress({
@@ -403,7 +415,7 @@ export function useQueryDiff(open: boolean, customConnId?: string) {
         total: totalSteps,
         stage: "Analyzing Query B Cost/Time...",
       });
-      const statsB = await executeExplainQuery(queryB);
+      const explainB = await executeExplainQuery(queryB);
 
       const columnsA = dataA.rows[0] ? Object.keys(dataA.rows[0]) : [];
       const columnsB = dataB.rows[0] ? Object.keys(dataB.rows[0]) : [];
@@ -427,15 +439,17 @@ export function useQueryDiff(open: boolean, customConnId?: string) {
       setResult({
         queryA: {
           sql: queryA,
-          stats: statsA,
+          stats: explainA?.stats ?? null,
           columns: columnsA,
           rowCount: dataA.count,
+          plan: explainA?.plan ?? null,
         },
         queryB: {
           sql: queryB,
-          stats: statsB,
+          stats: explainB?.stats ?? null,
           columns: columnsB,
           rowCount: dataB.count,
+          plan: explainB?.plan ?? null,
         },
         diffRows,
         summary,

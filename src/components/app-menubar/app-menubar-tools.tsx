@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { GitCompare, Zap, History, FileJson, BookOpen } from "lucide-react";
+import { GitCompare, Zap, History, Database } from "lucide-react";
 import { Shortcut } from "@/components/ui/kbd";
 import {
   MenubarContent,
@@ -16,30 +16,15 @@ export const AppMenubarTools = () => {
     <MenubarMenu>
       <MenubarTrigger>{t("menuTools")}</MenubarTrigger>
       <MenubarContent>
-        <MenubarItem onSelect={() => dispatchCommand("benchmark")}>
-          <Zap className="size-4 text-indigo-500" />
-          {t("toolBenchmarkName")}
-          <Shortcut shortcut="⌘ + ⇧ + B" />
-        </MenubarItem>
         <MenubarItem onSelect={() => dispatchCommand("diff-optimizer")}>
           <GitCompare className="size-4 text-indigo-500" />
           {t("toolDiffName")}
           <Shortcut shortcut="⌘ + ⇧ + D" />
         </MenubarItem>
-        <MenubarItem onSelect={() => dispatchCommand("open-history-snippets")}>
-          <History className="size-4 text-indigo-500" />
-          {t("toolHistoryName")}
-          <Shortcut shortcut="⌘ + ⇧ + H" />
-        </MenubarItem>
-        <MenubarItem onSelect={() => dispatchCommand("jsonb-schema-map")}>
-          <FileJson className="size-4 text-indigo-500" />
-          {t("toolJsonbName")}
-          <Shortcut shortcut="⌘ + ⇧ + M" />
-        </MenubarItem>
-        <MenubarItem onSelect={() => dispatchCommand("sql-reference")}>
-          <BookOpen className="size-4 text-indigo-500" />
-          {t("toolSqlRefName")}
-          <Shortcut shortcut="⌘ + ⇧ + R" />
+        <MenubarItem onSelect={() => dispatchCommand("db-designer")}>
+          <Database className="size-4 text-indigo-500" />
+          {t("toolDbDesignerName")}
+          <Shortcut shortcut="⌘ + ⇧ + E" />
         </MenubarItem>
       </MenubarContent>
     </MenubarMenu>

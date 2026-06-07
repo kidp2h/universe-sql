@@ -15,6 +15,10 @@ import {
 import type { QueryDiffResult } from "@/hooks/use-query-diff";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { VisualQueryPlan } from "@/components/query/visual-query-plan";
+import { QueryPerformanceProfiler } from "@/components/query/profiler/index";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Activity, Flame } from "lucide-react";
 
 type QueryDiffResultsProps = {
   result: QueryDiffResult;
@@ -73,20 +77,18 @@ export function QueryDiffResults({
     return String(val);
   };
 
-  // Helper for performance metrics percent
-  const renderMetricDiff = (
-    valA?: number,
-    valB?: number,
-    isLowerBetter = true,
-  ) => {
-    if (valA === undefined || valB === undefined || valA === 0) return null;
+  // Helper for performance metrics difference badge
+  const getDiffBadge = (valA?: number, valB?: number, isLowerBetter = true) => {
+    if (valA === undefined || valB === undefined || valA === 0) {
+      return <span className="text-muted-foreground italic text-xs">N/A</span>;
+    }
     const diff = valB - valA;
     const percent = (diff / valA) * 100;
     const improved = isLowerBetter ? percent < 0 : percent > 0;
 
     if (Math.abs(percent) < 0.05) {
       return (
-        <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded  font-semibold">
+        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-semibold border">
           0%
         </span>
       );
@@ -95,18 +97,19 @@ export function QueryDiffResults({
     return (
       <span
         className={cn(
-          "text-xs px-1.5 py-0.5 rounded  font-semibold flex items-center gap-0.5",
+          "text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 w-fit border",
           improved
-            ? "bg-brand/10 text-brand/80 border border-brand/15"
-            : "bg-rose-500/10 text-rose-400 border border-rose-500/15",
+            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
         )}
       >
         {improved ? (
-          <TrendingUp className="size-3" />
+          <TrendingUp className="size-3 text-emerald-500" />
         ) : (
-          <TrendingDown className="size-3" />
+          <TrendingDown className="size-3 text-rose-500" />
         )}
-        {Math.abs(percent).toFixed(1)}% {improved ? t("better") : t("worse")}
+        {improved ? "-" : "+"}
+        {Math.abs(percent).toFixed(1)}%
       </span>
     );
   };
@@ -116,6 +119,8 @@ export function QueryDiffResults({
     summary.added === 0 &&
     summary.deleted === 0 &&
     !hasSchemaMismatch;
+
+  const totalMismatches = summary.modified + summary.deleted + summary.added;
 
   return (
     <div className="space-y-6">
@@ -143,7 +148,8 @@ export function QueryDiffResults({
             <h4 className="font-bold text-lg text-foreground">
               {t("mismatchDetected")}
             </h4>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground mt-0.5 font-medium">
+              {t("mismatchCount", { count: totalMismatches })}.{" "}
               {hasSchemaMismatch && `${t("columnSchemaDiff")}! `}
               {summary.modified > 0 &&
                 `${summary.modified} ${t("tabModified").toLowerCase()} `}
@@ -159,10 +165,10 @@ export function QueryDiffResults({
       {/* 2. Schema Mismatch Detailed Display */}
       {hasSchemaMismatch && (
         <div className="p-4 rounded-xl border border-dashed border-rose-500/20 bg-rose-500/5 space-y-2">
-          <h5 className="text-sm font-bold text-rose-400 uppercase tracking-wider ">
+          <h5 className="text-sm font-bold text-rose-400 uppercase tracking-wider">
             {t("columnSchemaDiff")}
           </h5>
-          <div className="grid grid-cols-2 gap-4 text-sm ">
+          <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="space-y-1">
               <span className="text-muted-foreground block text-xs">
                 {t("columnsQueryA")} ({queryA.columns.length})
@@ -207,109 +213,134 @@ export function QueryDiffResults({
         </div>
       )}
 
-      {/* 3. Performance Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Cost Compare */}
-        <div className="p-4 rounded-2xl border border-border bg-card/40 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-muted-foreground uppercase  flex items-center gap-1.5">
-              <Coins className="size-3.5 text-indigo-400" />
-              {t("plannerTotalCost")}
-            </span>
-            {renderMetricDiff(queryA.stats?.totalCost, queryB.stats?.totalCost)}
-          </div>
-          <div className="mt-2 space-y-1.5">
-            <div className="flex justify-between items-baseline">
-              <span className="text-sm text-muted-foreground">
-                Original (A):
-              </span>
-              <span className="text-sm  font-semibold text-foreground">
-                {queryA.stats?.totalCost
+      {/* 3. Performance Metrics Unified Comparison Table */}
+      <div className="border rounded-xl overflow-hidden bg-card/30">
+        <table className="w-full text-sm text-left border-collapse">
+          <thead>
+            <tr className="bg-muted/40 border-b border-border">
+              <th className="p-3 font-semibold text-muted-foreground w-1/4">
+                {t("metric")}
+              </th>
+              <th className="p-3 font-semibold text-indigo-400 w-1/4">
+                {t("tabInputA")}
+              </th>
+              <th className="p-3 font-semibold text-sky-400 w-1/4">
+                {t("tabInputB")}
+              </th>
+              <th className="p-3 font-semibold text-muted-foreground w-1/4">
+                {t("difference")}
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {/* Cost Row */}
+            <tr className="hover:bg-muted/10 transition-colors">
+              <td className="p-3 font-medium text-foreground flex items-center gap-2">
+                <Coins className="size-4 text-indigo-400" />
+                {t("plannerTotalCost")}
+              </td>
+              <td className="p-3 font-mono">
+                {queryA.stats?.totalCost !== undefined
                   ? queryA.stats.totalCost.toLocaleString()
                   : "N/A"}
-              </span>
-            </div>
-            <div className="flex justify-between items-baseline">
-              <span className="text-sm text-muted-foreground">
-                Optimized (B):
-              </span>
-              <span className="text-sm  font-bold text-indigo-400">
-                {queryB.stats?.totalCost
+              </td>
+              <td className="p-3 font-mono font-semibold text-sky-400">
+                {queryB.stats?.totalCost !== undefined
                   ? queryB.stats.totalCost.toLocaleString()
                   : "N/A"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Execution Time Compare */}
-        <div className="p-4 rounded-2xl border border-border bg-card/40 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-muted-foreground uppercase  flex items-center gap-1.5">
-              <Clock className="size-3.5 text-sky-400" />
-              {t("trueExecutionTime")}
-            </span>
-            {renderMetricDiff(
-              queryA.stats?.dbExecutionTime,
-              queryB.stats?.dbExecutionTime,
-            )}
-          </div>
-          <div className="mt-2 space-y-1.5">
-            <div className="flex justify-between items-baseline">
-              <span className="text-sm text-muted-foreground">
-                Original (A):
-              </span>
-              <span className="text-sm  font-semibold text-foreground">
-                {queryA.stats?.dbExecutionTime
+              </td>
+              <td className="p-3">
+                {getDiffBadge(
+                  queryA.stats?.totalCost,
+                  queryB.stats?.totalCost,
+                  true,
+                )}
+              </td>
+            </tr>
+            {/* Execution Time Row */}
+            <tr className="hover:bg-muted/10 transition-colors">
+              <td className="p-3 font-medium text-foreground flex items-center gap-2">
+                <Clock className="size-4 text-sky-400" />
+                {t("trueExecutionTime")}
+              </td>
+              <td className="p-3 font-mono">
+                {queryA.stats?.dbExecutionTime !== undefined
                   ? `${queryA.stats.dbExecutionTime.toFixed(3)} ms`
                   : "N/A"}
-              </span>
-            </div>
-            <div className="flex justify-between items-baseline">
-              <span className="text-sm text-muted-foreground">
-                Optimized (B):
-              </span>
-              <span className="text-sm  font-bold text-sky-400">
-                {queryB.stats?.dbExecutionTime
+              </td>
+              <td className="p-3 font-mono font-semibold text-sky-400">
+                {queryB.stats?.dbExecutionTime !== undefined
                   ? `${queryB.stats.dbExecutionTime.toFixed(3)} ms`
                   : "N/A"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* IO Cache hits */}
-        <div className="p-4 rounded-2xl border border-border bg-card/40 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-muted-foreground uppercase  flex items-center gap-1.5">
-              <Database className="size-3.5 text-brand/80" />
-              {t("sharedBufferHits")}
-            </span>
-            {renderMetricDiff(
-              queryA.stats?.sharedHitBlocks,
-              queryB.stats?.sharedHitBlocks,
-              false,
-            )}
-          </div>
-          <div className="mt-2 space-y-1.5">
-            <div className="flex justify-between items-baseline">
-              <span className="text-sm text-muted-foreground">
-                Original (A):
-              </span>
-              <span className="text-sm  font-semibold text-foreground">
-                {queryA.stats?.sharedHitBlocks ?? 0} {t("hits")}
-              </span>
-            </div>
-            <div className="flex justify-between items-baseline">
-              <span className="text-sm text-muted-foreground">
-                Optimized (B):
-              </span>
-              <span className="text-sm  font-bold text-brand/80">
-                {queryB.stats?.sharedHitBlocks ?? 0} {t("hits")}
-              </span>
-            </div>
-          </div>
-        </div>
+              </td>
+              <td className="p-3">
+                {getDiffBadge(
+                  queryA.stats?.dbExecutionTime,
+                  queryB.stats?.dbExecutionTime,
+                  true,
+                )}
+              </td>
+            </tr>
+            {/* Row Count Row */}
+            <tr className="hover:bg-muted/10 transition-colors">
+              <td className="p-3 font-medium text-foreground flex items-center gap-2">
+                <Info className="size-4 text-amber-500" />
+                {t("rowCount")}
+              </td>
+              <td className="p-3 font-mono">
+                {queryA.rowCount !== undefined
+                  ? queryA.rowCount.toLocaleString()
+                  : "0"}
+              </td>
+              <td className="p-3 font-mono font-semibold text-sky-400">
+                {queryB.rowCount !== undefined
+                  ? queryB.rowCount.toLocaleString()
+                  : "0"}
+              </td>
+              <td className="p-3">
+                {(() => {
+                  const rA = queryA.rowCount ?? 0;
+                  const rB = queryB.rowCount ?? 0;
+                  if (rA === rB) {
+                    return (
+                      <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">
+                        Identical
+                      </span>
+                    );
+                  }
+                  const diff = rB - rA;
+                  const percent = (diff / (rA || 1)) * 100;
+                  return (
+                    <span className="text-xs bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded-full font-semibold">
+                      {diff > 0 ? "+" : ""}
+                      {diff} ({percent.toFixed(1)}%)
+                    </span>
+                  );
+                })()}
+              </td>
+            </tr>
+            {/* Shared Buffer Hits Row */}
+            <tr className="hover:bg-muted/10 transition-colors">
+              <td className="p-3 font-medium text-foreground flex items-center gap-2">
+                <Database className="size-4 text-emerald-500" />
+                {t("sharedBufferHits")}
+              </td>
+              <td className="p-3 font-mono">
+                {queryA.stats?.sharedHitBlocks ?? 0}
+              </td>
+              <td className="p-3 font-mono font-semibold text-sky-400">
+                {queryB.stats?.sharedHitBlocks ?? 0}
+              </td>
+              <td className="p-3">
+                {getDiffBadge(
+                  queryA.stats?.sharedHitBlocks,
+                  queryB.stats?.sharedHitBlocks,
+                  false,
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {/* 4. Tab Selector Filters */}
@@ -351,7 +382,7 @@ export function QueryDiffResults({
                 all: "text-foreground border-indigo-500 font-bold",
                 identical: "text-brand/80 border-brand font-bold",
                 modified: "text-amber-400 border-amber-500 font-bold",
-                added: "text-green-400 border-green-500 font-bold",
+                added: "text-emerald-500 border-emerald-500 font-bold",
                 deleted: "text-rose-400 border-rose-500 font-bold",
               };
 
@@ -360,19 +391,19 @@ export function QueryDiffResults({
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={cn(
-                    "text-sm px-3 py-1.5 border-b-2 font-medium transition-all flex items-center gap-1.5 focus:outline-none",
+                    "text-sm px-3 py-1.5 border-b-2 font-medium transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer",
                     activeTab === tab ? activeStyleMap[tab] : styleMap[tab],
                   )}
                 >
                   {labelMap[tab]}
-                  <span className="text-xs px-1.5 py-0.2 rounded-full bg-muted border ">
+                  <span className="text-xs px-1.5 py-0.2 rounded-full bg-muted border">
                     {countMap[tab]}
                   </span>
                 </button>
               );
             })}
           </div>
-          <span className="text-sm text-muted-foreground  flex items-center gap-1">
+          <span className="text-sm text-muted-foreground flex items-center gap-1">
             <Info className="size-3.5" />
             {t("showingUpTo", { limit })}
           </span>
@@ -399,7 +430,7 @@ export function QueryDiffResults({
                       {t("statusHeader")}
                     </th>
                     {keyCol && commonColumns.includes(keyCol) && (
-                      <th className="p-3 font-semibold text-indigo-400 ">
+                      <th className="p-3 font-semibold text-indigo-400">
                         {t("keyHeader")} {keyCol}
                       </th>
                     )}
@@ -408,7 +439,7 @@ export function QueryDiffResults({
                       .map((col) => (
                         <th
                           key={col}
-                          className="p-3 font-semibold text-muted-foreground "
+                          className="p-3 font-semibold text-muted-foreground"
                         >
                           {col}
                         </th>
@@ -430,22 +461,22 @@ export function QueryDiffResults({
                       statusBadgeClass = "bg-muted text-muted-foreground";
                     } else if (diffRow.type === "added") {
                       rowBgClass =
-                        "bg-brand/5 hover:bg-brand/10 text-brand/70/90";
+                        "bg-emerald-500/5 dark:bg-emerald-500/10 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300";
                       statusLabel = `+ ${t("statusAdded")}`;
                       statusBadgeClass =
-                        "bg-brand/15 text-brand/80 border border-brand/20";
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20";
                     } else if (diffRow.type === "deleted") {
                       rowBgClass =
-                        "bg-rose-500/5 hover:bg-rose-500/10 text-rose-300/90 line-through opacity-85";
+                        "bg-rose-500/5 dark:bg-rose-500/10 hover:bg-rose-500/10 dark:hover:bg-rose-500/15 text-rose-800 dark:text-rose-300/80 line-through opacity-85";
                       statusLabel = `- ${t("statusMissing")}`;
                       statusBadgeClass =
-                        "bg-rose-500/15 text-rose-400 border border-rose-500/20";
+                        "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20";
                     } else if (diffRow.type === "modified") {
                       rowBgClass =
-                        "bg-amber-500/5 hover:bg-amber-500/10 text-foreground";
+                        "bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/10 dark:hover:bg-amber-500/15 text-amber-800 dark:text-amber-200";
                       statusLabel = `~ ${t("statusModified")}`;
                       statusBadgeClass =
-                        "bg-amber-500/15 text-amber-400 border border-amber-500/20";
+                        "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20";
                     }
 
                     const activeRow = diffRow.rowB ?? diffRow.rowA ?? {};
@@ -455,7 +486,18 @@ export function QueryDiffResults({
                         key={idx}
                         className={cn("transition-colors", rowBgClass)}
                       >
-                        <td className="p-3 text-center text-muted-foreground/60  select-none">
+                        <td
+                          className={cn(
+                            "p-3 text-center text-muted-foreground/60 select-none border-l-2",
+                            diffRow.type === "added"
+                              ? "border-l-emerald-500"
+                              : diffRow.type === "deleted"
+                                ? "border-l-rose-500"
+                                : diffRow.type === "modified"
+                                  ? "border-l-amber-500"
+                                  : "border-l-transparent",
+                          )}
+                        >
                           {rowNum}
                         </td>
                         <td className="p-3 text-center select-none">
@@ -549,6 +591,104 @@ export function QueryDiffResults({
               </div>
             )}
           </div>
+        )}
+      </div>
+
+      {/* 6. Query Execution Plans & Profiler Graphs */}
+      {(queryA.plan || queryB.plan) && (
+        <div className="p-5 rounded-xl border bg-card/50 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5 select-none">
+              <Activity className="size-4 text-indigo-500" />
+              {t("queryPlansAndPerformanceProfiles", {
+                defaultValue: "Query Execution Plans & Performance Profiler",
+              })}
+            </h3>
+          </div>
+
+          <Tabs defaultValue="queryA" className="w-full space-y-4">
+            <TabsList className="bg-muted/40 border p-1 rounded-lg">
+              <TabsTrigger
+                value="queryA"
+                className="rounded-md px-4 py-1.5 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+              >
+                {t("tabInputA")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="queryB"
+                className="rounded-md px-4 py-1.5 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+              >
+                {t("tabInputB")}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="queryA" className="mt-0 outline-none">
+              {queryA.plan ? (
+                <PlanVisualizer plan={queryA.plan} />
+              ) : (
+                <div className="py-12 text-center text-sm text-muted-foreground italic border border-dashed rounded-2xl bg-muted/5">
+                  No explain plan available for Query A.
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="queryB" className="mt-0 outline-none">
+              {queryB.plan ? (
+                <PlanVisualizer plan={queryB.plan} />
+              ) : (
+                <div className="py-12 text-center text-sm text-muted-foreground italic border border-dashed rounded-2xl bg-muted/5">
+                  No explain plan available for Query B.
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanVisualizer({ plan }: { plan: any }) {
+  const [activeView, setActiveView] = React.useState<"visual" | "flame">(
+    "visual",
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <div className="flex rounded-lg bg-muted/30 p-1 border gap-1 select-none">
+          <button
+            onClick={() => setActiveView("visual")}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-bold tracking-tight uppercase transition flex items-center gap-1.5 cursor-pointer",
+              activeView === "visual"
+                ? "bg-background text-foreground shadow-sm border border-border/20"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Activity className="size-3 text-indigo-500" />
+            Visual Plan Graph
+          </button>
+          <button
+            onClick={() => setActiveView("flame")}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-bold tracking-tight uppercase transition flex items-center gap-1.5 cursor-pointer",
+              activeView === "flame"
+                ? "bg-background text-foreground shadow-sm border border-border/20"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Flame className="size-3 text-red-500" />
+            Flame Graph / Timeline
+          </button>
+        </div>
+      </div>
+
+      <div className="h-[450px] w-full border rounded-2xl overflow-hidden bg-background relative">
+        {activeView === "visual" ? (
+          <VisualQueryPlan plan={plan} />
+        ) : (
+          <QueryPerformanceProfiler plan={plan} />
         )}
       </div>
     </div>

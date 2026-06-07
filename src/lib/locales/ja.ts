@@ -84,6 +84,27 @@ const ja = {
   iterationsLabel: "試行回数：",
   iterationsDesc:
     "（デフォルトは10、正確な平均値を算出するために最大50回まで）",
+  executionTiming: "実行時間",
+  configureConnection: "1. 接続の設定",
+  inputQueries: "2. クエリの入力",
+  executionOptions: "3. 実行オプション",
+  comparisonOutput: "4. 比較出力",
+  tabComparisonView: "比較表示",
+  tabInputA: "クエリ A (オリジナル)",
+  tabInputB: "クエリ B (最適化)",
+  keyColLabelRefined: "ユニークキー:",
+  keyColDescRefined: "ユニークキー (行の整列用、例: 'id')",
+  rowLimitTooltip:
+    "フロントエンドメモリを保護するため、返される最大行数を制限します",
+  keyColTooltip:
+    "両方のクエリ出力間で対応する行を整列させるユニークキー列を指定します",
+  performanceSummary: "パフォーマンス概要",
+  dataDiffGrid: "データ差分グリッド",
+  difference: "差分",
+  rowCount: "行数",
+  mismatchCount: "{{count}}件の不一致行が検出されました",
+  editor: "エディタ",
+  layout: "レイアウト",
   reset: "リセット",
   startBenchmark: "ベンチマーク開始",
   benchmarking: "クエリのベンチマークを実行中...",
@@ -539,6 +560,35 @@ const ja = {
   disableGpuDesc:
     "グラフィックパフォーマンス関連の問題を解決するためにハードウェアアクセラレーションを無効化します。",
   relaunchApp: "再起動",
+
+  // データベースデザイナー & 設定
+  toolDbDesignerName: "DBデザイナー",
+  toolDbDesignerDesc: "視覚的にテーブルを設計し、リレーションを作成します",
+  dbDesignerTitle: "データベースデザイナー",
+  dbDesignerDesc:
+    "視覚的にテーブルや列を設計し、リレーションを作成してSQLスキーマを生成します。",
+  editorFontSize: "エディタのフォントサイズ",
+  editorFontSizeDesc: "クエリエディタの文字サイズを調整します。",
+  viewJsonTitle: "JSONを表示",
+  viewJsonDesc: "整形されたJSONビューア",
+  addTable: "テーブルを追加",
+  tableName: "テーブル名",
+  addColumn: "列を追加",
+  columnName: "列名",
+  dataType: "データ型",
+  isPrimary: "主キー (PK)",
+  isNullable: "Null許容",
+  generatedSql: "生成された DDL SQL",
+  deleteTable: "テーブルを削除",
+  deleteColumn: "列を削除",
+  tableAdded: "テーブルがデザイナーキャンバスに追加されました！",
+  canvasCleared: "キャンバスが正常にクリアされました。",
+  selfReferenceWarning: "自己参照接続はサポートされていません。",
+  copiedLabel: "コピー済み",
+  noColumnsDefined:
+    "列が定義されていません。編集をクリックして追加してください。",
+  placeholderTableName: "テーブル名",
+  placeholderColumnName: "カラム名",
 };
 
 export default ja;

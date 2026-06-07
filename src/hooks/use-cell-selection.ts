@@ -61,7 +61,7 @@ export function useCellSelection(
         if (isInDrag || isFinalized) {
           cell.setAttribute("data-selected", "true");
           count++;
-          const text = (cell.textContent || "").trim();
+          const text = cell.getAttribute("data-raw-value") || "";
           if (count === 1) {
             singleCellText = text;
             singleCellType = cell.getAttribute("data-type") || "";
@@ -101,7 +101,7 @@ export function useCellSelection(
         if (jsonBtn) {
           if (
             count === 1 &&
-            singleCellType === "string" &&
+            (singleCellType === "string" || singleCellType === "object") &&
             isJSON(singleCellText)
           ) {
             jsonBtn.classList.remove("hidden");
@@ -328,7 +328,7 @@ export function useCellSelection(
       ) || [],
     );
     if (selectedCells.length !== 1) return null;
-    return (selectedCells[0].textContent || "").trim();
+    return selectedCells[0].getAttribute("data-raw-value") || "";
   }, []);
 
   return {

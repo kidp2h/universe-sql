@@ -53,8 +53,7 @@ export const useQueryResultsStore = create<QueryResultsState>()(
             executedAt: Date.now(),
           };
 
-          const existingResults = state.resultsByTab[tabId] || [];
-          const updatedResults = [...existingResults, newResultTab];
+          const updatedResults = [newResultTab];
 
           return {
             resultsByTab: {

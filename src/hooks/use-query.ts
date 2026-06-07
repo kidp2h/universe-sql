@@ -851,7 +851,11 @@ export function useQuery({
       store.queryTabs.find((tab) => tab.id === activeQueryTabId) ||
       store.queryTabs.find((tab) => !tab.type || tab.type === "sql");
 
-    if (!currentActiveTab || !activeTabConnection || !currentActiveTab.sql.trim()) {
+    if (
+      !currentActiveTab ||
+      !activeTabConnection ||
+      !currentActiveTab.sql.trim()
+    ) {
       return;
     }
     let sqlToExplain = currentActiveTab.sql.trim();
@@ -1124,7 +1128,9 @@ export function useQuery({
 
     const unsubscribe = useTabStore.subscribe((state) => {
       const activeTabId = state.activeQueryTabId;
-      const currentActiveTab = state.queryTabs.find((t) => t.id === activeTabId);
+      const currentActiveTab = state.queryTabs.find(
+        (t) => t.id === activeTabId,
+      );
 
       if (
         !currentActiveTab?.filePath ||

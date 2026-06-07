@@ -8,7 +8,8 @@ import {
   Panel,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/hooks/use-theme";
+import { resolveIsDark } from "@/lib/theme-init";
 import { Search, X, Database } from "lucide-react";
 import { ERDTableNode } from "./erd-table-node";
 import { ERDToolbar } from "./erd-toolbar";
@@ -35,6 +36,12 @@ interface ERDCanvasProps {
 export function ERDCanvas({ tables, relations }: ERDCanvasProps) {
   const { t } = useTranslation();
   const { theme } = useTheme();
+  const [isDark, setIsDark] = React.useState(() => resolveIsDark(theme));
+
+  React.useEffect(() => {
+    setIsDark(resolveIsDark(theme));
+  }, [theme]);
+
   const [nodes, setNodes, onNodesChange] = useNodesState<ERDNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<ERDEdge>([]);
 
@@ -45,8 +52,6 @@ export function ERDCanvas({ tables, relations }: ERDCanvasProps) {
   const [isTablesPanelOpen, setIsTablesPanelOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [showOnlyKeys, setShowOnlyKeys] = React.useState(false);
-
-  const isDark = theme === "dark";
 
   // Default to empty Set (deselect all) when database tables prop updates
   React.useEffect(() => {
@@ -132,6 +137,8 @@ export function ERDCanvas({ tables, relations }: ERDCanvasProps) {
           "--xy-background-color": "var(--background)",
           "--xy-node-color": "var(--foreground)",
           "--xy-edge-stroke": "var(--muted-foreground)",
+          "--xy-node-background-color": "transparent",
+          "--xy-node-border": "none",
           "--xy-minimap-background-color": "var(--card)",
           "--xy-minimap-mask-color": isDark
             ? "rgba(0,0,0,0.6)"
@@ -145,12 +152,12 @@ export function ERDCanvas({ tables, relations }: ERDCanvasProps) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
-        colorMode={isDark ? "dark" : "light"}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={1.5}
         deleteKeyCode={null}
+        proOptions={{ hideAttribution: true }}
       >
         <Background gap={24} size={2} color="var(--border)" />
 

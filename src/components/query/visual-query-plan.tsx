@@ -15,6 +15,7 @@ import {
   Minimize2,
   Download,
   Image,
+  TriangleAlert,
 } from "lucide-react";
 import {
   ReactFlow,
@@ -30,7 +31,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "@dagrejs/dagre";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/hooks/use-theme";
+import { resolveIsDark } from "@/lib/theme-init";
 
 import {
   Sheet,
@@ -383,7 +385,7 @@ function applyDagreLayout(
 ) {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: "TB", ranksep: 80, nodesep: 50 });
+  dagreGraph.setGraph({ rankdir: "TB", ranksep: 140, nodesep: 100 });
 
   for (const node of nodes) {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
@@ -422,8 +424,12 @@ function VisualQueryPlanCanvas({
   const { fitView, zoomIn, zoomOut } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<any>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<any>([]);
-  const { theme = "dark" } = useTheme();
-  const isDark = theme === "dark";
+  const { theme } = useTheme();
+  const [isDark, setIsDark] = React.useState(() => resolveIsDark(theme));
+
+  React.useEffect(() => {
+    setIsDark(resolveIsDark(theme));
+  }, [theme]);
 
   const rootNode = plan && (plan as any).Plan ? (plan as any).Plan : plan;
   const rootCost = rootNode["Total Cost"] || 1;
@@ -472,13 +478,24 @@ function VisualQueryPlanCanvas({
 
     const toastId = toast.loading("Generating PNG image...");
     try {
-      const dataUrl = await toPng(viewport, {
-        backgroundColor: "#09090b",
-        style: {
-          transform: "scale(1)",
-          transformOrigin: "top center",
-        },
-      });
+      let dataUrl = "";
+      const isDark = document.documentElement.classList.contains("dark");
+      if (isDark) {
+        document.documentElement.classList.remove("dark");
+      }
+      try {
+        dataUrl = await toPng(viewport, {
+          backgroundColor: "#ffffff",
+          style: {
+            transform: "scale(1)",
+            transformOrigin: "top center",
+          },
+        });
+      } finally {
+        if (isDark) {
+          document.documentElement.classList.add("dark");
+        }
+      }
 
       const saveResult = await window.electron.showSaveDialog({
         title: "Export Query Plan as PNG",
@@ -525,13 +542,24 @@ function VisualQueryPlanCanvas({
 
     const toastId = toast.loading("Generating SVG diagram...");
     try {
-      const dataUrl = await toSvg(viewport, {
-        backgroundColor: "#09090b",
-        style: {
-          transform: "scale(1)",
-          transformOrigin: "top center",
-        },
-      });
+      let dataUrl = "";
+      const isDark = document.documentElement.classList.contains("dark");
+      if (isDark) {
+        document.documentElement.classList.remove("dark");
+      }
+      try {
+        dataUrl = await toSvg(viewport, {
+          backgroundColor: "#ffffff",
+          style: {
+            transform: "scale(1)",
+            transformOrigin: "top center",
+          },
+        });
+      } finally {
+        if (isDark) {
+          document.documentElement.classList.add("dark");
+        }
+      }
 
       const saveResult = await window.electron.showSaveDialog({
         title: "Export Query Plan as SVG",
@@ -610,6 +638,8 @@ function VisualQueryPlanCanvas({
         {
           "--xy-background-color": "var(--background)",
           "--xy-node-color": "var(--foreground)",
+          "--xy-node-background-color": "transparent",
+          "--xy-node-border": "none",
           "--xy-edge-stroke": "var(--border)",
           "--xy-minimap-background-color": "var(--card)",
           "--xy-minimap-mask-color": isDark
@@ -624,12 +654,12 @@ function VisualQueryPlanCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
-        colorMode={isDark ? "dark" : "light"}
         fitView
         fitViewOptions={{ padding: 0.15 }}
         minZoom={0.2}
         maxZoom={1.5}
         deleteKeyCode={null}
+        proOptions={{ hideAttribution: true }}
       >
         <Background gap={24} size={2} color="var(--border)" />
 
@@ -737,7 +767,7 @@ function VisualQueryPlanCanvas({
                   return (
                     <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive text-sm space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="font-bold flex items-center gap-1.5">
-                        <AlertTriangle className="size-4 shrink-0" />
+                        <TriangleAlert className="size-4 shrink-0" />
                         Execution Bottleneck Detected
                       </div>
                       <p className="opacity-90 leading-relaxed">
@@ -1040,26 +1070,5 @@ export function VisualQueryPlan({ plan }: { plan: PlanNode | null }) {
         />
       </ReactFlowProvider>
     </div>
-  );
-}
-
-// Simple local Alert component fallback to avoid import bloat
-function AlertTriangle({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <title>Warning</title>
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-      <line x1="12" y1="9" x2="12" y2="13" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
-    </svg>
   );
 }

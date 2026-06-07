@@ -34,7 +34,52 @@ function AppLayoutContent({
   _theme,
   _setThemeMode,
 }: any) {
-  const { sidebarPosition } = useSidebar();
+  const {
+    sidebarPosition,
+    setActiveTab,
+    setOpen: setSidebarOpen,
+  } = useSidebar();
+  const openToolTab = useTabStore((state) => state.openToolTab);
+
+  const handleCommand = React.useCallback(
+    (event: Event) => {
+      const detail = (event as CustomEvent<{ type?: string }>).detail;
+      const type = detail?.type;
+
+      switch (type) {
+        case "open-command-palette":
+          setOpen(true);
+          break;
+        case "open-about":
+          setShowAboutDialog(true);
+          break;
+        case "diff-optimizer":
+          openToolTab("diff-optimizer");
+          break;
+        case "open-history-snippets":
+          setActiveTab("history");
+          setSidebarOpen(true);
+          break;
+        case "db-designer":
+          openToolTab("db-designer", null);
+          break;
+        case "visual-query-story":
+          openToolTab("visual-query-story", null);
+          break;
+        case "quit":
+          if (window.electron?.windowClose) {
+            void window.electron.windowClose();
+          }
+          break;
+      }
+    },
+    [setOpen, setShowAboutDialog, openToolTab, setActiveTab, setSidebarOpen],
+  );
+
+  React.useEffect(() => {
+    globalThis.addEventListener("usql:command", handleCommand);
+    return () => globalThis.removeEventListener("usql:command", handleCommand);
+  }, [handleCommand]);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
@@ -109,50 +154,7 @@ export default function AppLayout({
     dbPath: string;
     dbName: string;
   } | null>(null);
-  const openToolTab = useTabStore((state) => state.openToolTab);
   const { theme, setThemeMode } = useTheme();
-
-  const handleCommand = React.useCallback((event: Event) => {
-    const detail = (event as CustomEvent<{ type?: string }>).detail;
-    const type = detail?.type;
-
-    switch (type) {
-      case "open-command-palette":
-        setOpen(true);
-        break;
-      case "open-about":
-        setShowAboutDialog(true);
-        break;
-      case "benchmark":
-        openToolTab("benchmark");
-        break;
-      case "diff-optimizer":
-        openToolTab("diff-optimizer");
-        break;
-      case "open-history-snippets":
-        openToolTab("history-snippets");
-        break;
-      case "jsonb-schema-map":
-        openToolTab("jsonb-schema-map", null);
-        break;
-      case "sql-reference":
-        openToolTab("sql-reference", null);
-        break;
-      case "visual-query-story":
-        openToolTab("visual-query-story", null);
-        break;
-      case "quit":
-        if (window.electron?.windowClose) {
-          void window.electron.windowClose();
-        }
-        break;
-    }
-  }, []);
-
-  React.useEffect(() => {
-    globalThis.addEventListener("usql:command", handleCommand);
-    return () => globalThis.removeEventListener("usql:command", handleCommand);
-  }, [handleCommand]);
 
   React.useEffect(() => {
     const handleOpenModifyTable = (event: Event) => {
@@ -169,12 +171,6 @@ export default function AppLayout({
         setShowCreateTableDialog(true);
       }
     };
-    const handleOpenJsonbSchema = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (detail) {
-        openToolTab("jsonb-schema-map", detail);
-      }
-    };
     globalThis.addEventListener(
       "usql:open-modify-table",
       handleOpenModifyTable,
@@ -182,10 +178,6 @@ export default function AppLayout({
     globalThis.addEventListener(
       "usql:open-create-table",
       handleOpenCreateTable,
-    );
-    globalThis.addEventListener(
-      "usql:open-jsonb-schema-map",
-      handleOpenJsonbSchema,
     );
     return () => {
       globalThis.removeEventListener(
@@ -195,10 +187,6 @@ export default function AppLayout({
       globalThis.removeEventListener(
         "usql:open-create-table",
         handleOpenCreateTable,
-      );
-      globalThis.removeEventListener(
-        "usql:open-jsonb-schema-map",
-        handleOpenJsonbSchema,
       );
     };
   }, []);

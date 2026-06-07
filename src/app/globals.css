@@ -211,9 +211,9 @@
   /* Minimalist Black & White Editor Presets - Dark Mode */
   --editor-background: var(--background);
   --editor-foreground: var(--foreground);
-  --editor-caret: var(--foreground);
-  --editor-selection: rgba(59, 130, 246, 0.3);
-  --editor-selection-match: rgba(59, 130, 246, 0.15);
+  --editor-caret: var(--brand);
+  --editor-selection: color-mix(in srgb, var(--brand) 25%, transparent);
+  --editor-selection-match: color-mix(in srgb, var(--brand) 12%, transparent);
   --editor-line-highlight: rgba(255, 255, 255, 0.03);
   --editor-gutter-background: var(--background);
   --editor-gutter-foreground: var(--muted-foreground);
@@ -221,18 +221,18 @@
   --editor-border: var(--border);
 
   /* Syntax Highlighting (Neon-pastel, high-contrast, premium dark palette) */
-  --editor-keyword: #ff7b72;
-  /* Vibrant soft red for keywords */
+  --editor-keyword: var(--brand);
+  /* Accent-matching color for keywords */
   --editor-string: #a5d6ff;
   /* Brilliant light blue for strings */
   --editor-number: #79b8ff;
   /* Sky blue for numbers */
   --editor-comment: #8b949e;
   /* Muted gray for comments */
-  --editor-operator: #ff7b72;
-  /* Vibrant soft red/orange for operators */
-  --editor-function: #d2a8ff;
-  /* Pastel purple for functions */
+  --editor-operator: var(--brand);
+  /* Accent-matching color for operators */
+  --editor-function: var(--brand);
+  /* Accent-matching color for functions */
   --editor-type: #ffa657;
   /* Soft gold/orange for types/tables */
   --editor-property: #7ee787;
@@ -676,13 +676,13 @@
 }
 
 .dark.theme-mint {
-  --background: oklch(0.15 0.012 165);
-  --card: oklch(0.2 0.015 165);
-  --popover: oklch(0.2 0.015 165);
-  --muted: oklch(0.24 0.012 165);
-  --sidebar: oklch(0.12 0.012 165);
-  --sidebar-accent: oklch(0.21 0.015 165);
-  --sidebar-border: oklch(0.21 0.015 165);
+  --background: oklch(0.15 0.025 165);
+  --card: oklch(0.2 0.028 165);
+  --popover: oklch(0.2 0.028 165);
+  --muted: oklch(0.24 0.022 165);
+  --sidebar: oklch(0.12 0.022 165);
+  --sidebar-accent: oklch(0.21 0.025 165);
+  --sidebar-border: oklch(0.21 0.022 165);
   --brand: oklch(0.82 0.12 165);
   --ring: oklch(0.78 0.12 165);
   --border: oklch(1 0 0 / 9%);
@@ -703,13 +703,13 @@
 }
 
 .dark.theme-sky {
-  --background: oklch(0.14 0.018 210);
-  --card: oklch(0.19 0.022 210);
-  --popover: oklch(0.19 0.022 210);
-  --muted: oklch(0.23 0.018 210);
-  --sidebar: oklch(0.11 0.018 210);
-  --sidebar-accent: oklch(0.2 0.022 210);
-  --sidebar-border: oklch(0.21 0.022 210);
+  --background: oklch(0.14 0.025 210);
+  --card: oklch(0.19 0.028 210);
+  --popover: oklch(0.19 0.028 210);
+  --muted: oklch(0.23 0.025 210);
+  --sidebar: oklch(0.11 0.022 210);
+  --sidebar-accent: oklch(0.2 0.028 210);
+  --sidebar-border: oklch(0.21 0.025 210);
   --brand: oklch(0.72 0.17 210);
   --ring: oklch(0.68 0.17 210);
   --border: oklch(1 0 0 / 9%);
@@ -730,13 +730,13 @@
 }
 
 .dark.theme-violet {
-  --background: oklch(0.15 0.02 285);
-  --card: oklch(0.2 0.025 285);
-  --popover: oklch(0.2 0.025 285);
-  --muted: oklch(0.24 0.02 285);
-  --sidebar: oklch(0.12 0.02 285);
-  --sidebar-accent: oklch(0.21 0.022 285);
-  --sidebar-border: oklch(0.21 0.022 285);
+  --background: oklch(0.14 0.035 285);
+  --card: oklch(0.19 0.04 285);
+  --popover: oklch(0.19 0.04 285);
+  --muted: oklch(0.23 0.035 285);
+  --sidebar: oklch(0.11 0.035 285);
+  --sidebar-accent: oklch(0.2 0.04 285);
+  --sidebar-border: oklch(0.2 0.035 285);
   --brand: oklch(0.7 0.24 285);
   --ring: oklch(0.68 0.24 285);
   --border: oklch(1 0 0 / 10%);
@@ -757,13 +757,13 @@
 }
 
 .dark.theme-grape {
-  --background: oklch(0.14 0.02 295);
-  --card: oklch(0.19 0.025 295);
-  --popover: oklch(0.19 0.025 295);
-  --muted: oklch(0.23 0.02 295);
-  --sidebar: oklch(0.11 0.02 295);
-  --sidebar-accent: oklch(0.2 0.025 295);
-  --sidebar-border: oklch(0.21 0.025 295);
+  --background: oklch(0.135 0.035 295);
+  --card: oklch(0.185 0.04 295);
+  --popover: oklch(0.185 0.04 295);
+  --muted: oklch(0.225 0.035 295);
+  --sidebar: oklch(0.11 0.035 295);
+  --sidebar-accent: oklch(0.195 0.04 295);
+  --sidebar-border: oklch(0.2 0.035 295);
   --brand: oklch(0.72 0.22 295);
   --ring: oklch(0.68 0.22 295);
   --border: oklch(1 0 0 / 9%);
@@ -784,13 +784,13 @@
 }
 
 .dark.theme-pink {
-  --background: oklch(0.15 0.018 335);
-  --card: oklch(0.2 0.02 335);
-  --popover: oklch(0.2 0.02 335);
-  --muted: oklch(0.24 0.018 335);
-  --sidebar: oklch(0.12 0.018 335);
-  --sidebar-accent: oklch(0.21 0.018 335);
-  --sidebar-border: oklch(0.21 0.018 335);
+  --background: oklch(0.145 0.028 335);
+  --card: oklch(0.195 0.032 335);
+  --popover: oklch(0.195 0.032 335);
+  --muted: oklch(0.235 0.028 335);
+  --sidebar: oklch(0.115 0.028 335);
+  --sidebar-accent: oklch(0.205 0.032 335);
+  --sidebar-border: oklch(0.205 0.028 335);
   --brand: oklch(0.75 0.2 335);
   --ring: oklch(0.7 0.2 335);
   --border: oklch(1 0 0 / 10%);
@@ -811,13 +811,13 @@
 }
 
 .dark.theme-crimson {
-  --background: oklch(0.14 0.015 22);
-  --card: oklch(0.19 0.018 22);
-  --popover: oklch(0.19 0.018 22);
-  --muted: oklch(0.23 0.015 22);
-  --sidebar: oklch(0.11 0.015 22);
-  --sidebar-accent: oklch(0.2 0.018 22);
-  --sidebar-border: oklch(0.21 0.018 22);
+  --background: oklch(0.135 0.025 22);
+  --card: oklch(0.185 0.028 22);
+  --popover: oklch(0.185 0.028 22);
+  --muted: oklch(0.225 0.025 22);
+  --sidebar: oklch(0.11 0.022 22);
+  --sidebar-accent: oklch(0.195 0.028 22);
+  --sidebar-border: oklch(0.2 0.025 22);
   --brand: oklch(0.68 0.22 22);
   --ring: oklch(0.64 0.22 22);
   --border: oklch(1 0 0 / 9%);
@@ -838,13 +838,13 @@
 }
 
 .dark.theme-amber {
-  --background: oklch(0.13 0.012 73);
-  --card: oklch(0.18 0.015 73);
-  --popover: oklch(0.18 0.015 73);
-  --muted: oklch(0.22 0.012 73);
-  --sidebar: oklch(0.1 0.012 73);
-  --sidebar-accent: oklch(0.19 0.015 73);
-  --sidebar-border: oklch(0.2 0.015 73);
+  --background: oklch(0.125 0.022 73);
+  --card: oklch(0.175 0.025 73);
+  --popover: oklch(0.175 0.025 73);
+  --muted: oklch(0.215 0.022 73);
+  --sidebar: oklch(0.095 0.02 73);
+  --sidebar-accent: oklch(0.185 0.025 73);
+  --sidebar-border: oklch(0.19 0.022 73);
   --brand: oklch(0.82 0.18 73);
   --ring: oklch(0.78 0.18 73);
   --border: oklch(1 0 0 / 9%);
@@ -865,13 +865,13 @@
 }
 
 .dark.theme-copper {
-  --background: oklch(0.13 0.015 48);
-  --card: oklch(0.18 0.018 48);
-  --popover: oklch(0.18 0.018 48);
-  --muted: oklch(0.22 0.015 48);
-  --sidebar: oklch(0.1 0.015 48);
-  --sidebar-accent: oklch(0.19 0.018 48);
-  --sidebar-border: oklch(0.2 0.018 48);
+  --background: oklch(0.125 0.022 48);
+  --card: oklch(0.175 0.025 48);
+  --popover: oklch(0.175 0.025 48);
+  --muted: oklch(0.215 0.022 48);
+  --sidebar: oklch(0.095 0.02 48);
+  --sidebar-accent: oklch(0.185 0.025 48);
+  --sidebar-border: oklch(0.19 0.022 48);
   --brand: oklch(0.74 0.2 48);
   --ring: oklch(0.7 0.2 48);
   --border: oklch(1 0 0 / 9%);
@@ -892,13 +892,13 @@
 }
 
 .dark.theme-slate {
-  --background: oklch(0.15 0.01 240);
-  --card: oklch(0.2 0.012 240);
-  --popover: oklch(0.2 0.012 240);
-  --muted: oklch(0.24 0.01 240);
-  --sidebar: oklch(0.12 0.01 240);
-  --sidebar-accent: oklch(0.21 0.012 240);
-  --sidebar-border: oklch(0.21 0.012 240);
+  --background: oklch(0.145 0.016 240);
+  --card: oklch(0.195 0.02 240);
+  --popover: oklch(0.195 0.02 240);
+  --muted: oklch(0.235 0.016 240);
+  --sidebar: oklch(0.115 0.016 240);
+  --sidebar-accent: oklch(0.205 0.02 240);
+  --sidebar-border: oklch(0.205 0.016 240);
   --brand: oklch(0.7 0.04 240);
   --ring: oklch(0.66 0.04 240);
   --border: oklch(1 0 0 / 9%);
@@ -985,13 +985,13 @@
 }
 
 .dark.theme-aurora {
-  --background: oklch(0.14 0.02 200);
-  --card: oklch(0.19 0.025 200);
-  --popover: oklch(0.19 0.025 200);
-  --muted: oklch(0.23 0.02 200);
-  --sidebar: oklch(0.11 0.02 200);
-  --sidebar-accent: oklch(0.2 0.022 200);
-  --sidebar-border: oklch(0.21 0.022 200);
+  --background: oklch(0.135 0.025 200);
+  --card: oklch(0.185 0.032 200);
+  --popover: oklch(0.185 0.032 200);
+  --muted: oklch(0.225 0.028 200);
+  --sidebar: oklch(0.11 0.025 200);
+  --sidebar-accent: oklch(0.195 0.032 200);
+  --sidebar-border: oklch(0.2 0.028 200);
   --brand: oklch(0.76 0.18 178);
   --ring: oklch(0.72 0.18 178);
   --border: oklch(1 0 0 / 9%);
@@ -1133,4 +1133,14 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   background-color: var(--background);
   overflow: hidden;
+}
+
+/* Grab cursor override for React Flow */
+.react-flow__pane {
+  cursor: move;
+}
+
+/* Hide scrollbar inside CodeMirror autocomplete list (webkit + IE/Edge) */
+.cm-tooltip-autocomplete > ul::-webkit-scrollbar {
+  display: none;
 }

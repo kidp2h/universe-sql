@@ -193,7 +193,16 @@ async function listPostgresColumns(payload, schema, table) {
       payload,
       async (client) => {
         const columnsPromise = client.query(
-          "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position",
+          `SELECT
+            c.column_name,
+            c.data_type,
+            pg_catalog.col_description(
+              (quote_ident(c.table_schema) || '.' || quote_ident(c.table_name))::regclass::oid,
+              c.ordinal_position
+            ) AS column_comment
+          FROM information_schema.columns c
+          WHERE c.table_schema = $1 AND c.table_name = $2
+          ORDER BY c.ordinal_position`,
           [schema, table],
         );
         const primaryPromise = client.query(
@@ -232,6 +241,7 @@ async function listPostgresColumns(payload, schema, table) {
       isPrimary: primarySet.has(row.column_name),
       isForeign: foreignMap.has(row.column_name),
       references: foreignMap.get(row.column_name),
+      comment: row.column_comment || null,
     }));
 
     logger.log(
@@ -340,7 +350,16 @@ async function listPostgresFullMetadata(payload) {
 
           // 3. Fetch columns, primary keys, and foreign keys in batch for this table
           const columnsPromise = client.query(
-            "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position",
+            `SELECT
+              c.column_name,
+              c.data_type,
+              pg_catalog.col_description(
+                (quote_ident(c.table_schema) || '.' || quote_ident(c.table_name))::regclass::oid,
+                c.ordinal_position
+              ) AS column_comment
+            FROM information_schema.columns c
+            WHERE c.table_schema = $1 AND c.table_name = $2
+            ORDER BY c.ordinal_position`,
             [schemaName, tableName],
           );
           const primaryPromise = client.query(
@@ -391,6 +410,7 @@ async function listPostgresFullMetadata(payload) {
               isPrimary: primarySet.has(row.column_name),
               isForeign: foreignMap.has(row.column_name),
               references: foreignMap.get(row.column_name),
+              comment: row.column_comment || null,
             })),
             indexes: idxRes.rows.map((row) => row.indexname),
           });
@@ -616,7 +636,16 @@ async function listPostgresSchemaMetadata(payload, schemaName) {
 
         // 3. Fetch columns, primary keys, and foreign keys in batch for this table
         const columnsPromise = client.query(
-          "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position",
+          `SELECT
+            c.column_name,
+            c.data_type,
+            pg_catalog.col_description(
+              (quote_ident(c.table_schema) || '.' || quote_ident(c.table_name))::regclass::oid,
+              c.ordinal_position
+            ) AS column_comment
+          FROM information_schema.columns c
+          WHERE c.table_schema = $1 AND c.table_name = $2
+          ORDER BY c.ordinal_position`,
           [schemaName, tableName],
         );
         const primaryPromise = client.query(
@@ -667,6 +696,7 @@ async function listPostgresSchemaMetadata(payload, schemaName) {
             isPrimary: primarySet.has(row.column_name),
             isForeign: foreignMap.has(row.column_name),
             references: foreignMap.get(row.column_name),
+            comment: row.column_comment || null,
           })),
           indexes: idxRes.rows.map((row) => row.indexname),
         });

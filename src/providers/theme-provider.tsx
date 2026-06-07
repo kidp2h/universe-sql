@@ -13,7 +13,6 @@ import {
   THEME_STORAGE_KEY,
   applyDocumentTheme,
   getStoredTheme,
-  getSystemPreference,
 } from "@/lib/theme-init";
 import "@/lib/i18n";
 
@@ -49,22 +48,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       "--editor-font-family",
       storedFont,
     );
-  }, []);
 
-  // Listen to OS theme changes if theme is "system"
-  React.useEffect(() => {
-    if (theme === "system") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handleSystemThemeChange = () => {
-        runTransition(() => {
-          applyDocumentTheme("system", getStoredThemePreset());
-        });
-      };
-      mediaQuery.addEventListener("change", handleSystemThemeChange);
-      return () =>
-        mediaQuery.removeEventListener("change", handleSystemThemeChange);
-    }
-  }, [theme]);
+    const storedFontSize =
+      localStorage.getItem("usql:editor-font-size") || "14px";
+    document.documentElement.style.setProperty(
+      "--editor-font-size",
+      storedFontSize,
+    );
+  }, []);
 
   const runTransition = (cb: () => void) => {
     if (
@@ -91,15 +82,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleTheme = React.useCallback(() => {
-    const current = theme;
-    const next =
-      current === "system"
-        ? getSystemPreference() === "dark"
-          ? "light"
-          : "dark"
-        : current === "dark"
-          ? "light"
-          : "dark";
+    const next = theme === "dark" ? "light" : "dark";
 
     runTransition(() => {
       applyDocumentTheme(next, getStoredThemePreset());

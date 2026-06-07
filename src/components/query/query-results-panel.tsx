@@ -18,6 +18,7 @@ import {
   Check,
   AlertTriangle,
   Trash2,
+  Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { QueryResult } from "@/components/query/types";
@@ -298,6 +299,27 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
     }
   }, [queryResult]);
 
+  React.useEffect(() => {
+    const handleViewJsonEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const text = customEvent.detail;
+      if (!text) return;
+      try {
+        const formatted = JSON.stringify(JSON.parse(text), null, 2);
+        setJsonContent(formatted);
+        setIsJsonDrawerOpen(true);
+      } catch {
+        setJsonContent(text);
+        setIsJsonDrawerOpen(true);
+      }
+    };
+
+    window.addEventListener("usql:view-json", handleViewJsonEvent);
+    return () => {
+      window.removeEventListener("usql:view-json", handleViewJsonEvent);
+    };
+  }, []);
+
   const getSelectedRowsRef = React.useRef<() => Record<string, unknown>[]>(
     () => [],
   );
@@ -337,12 +359,42 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
     }
   }, [getSingleSelectedCellText]);
 
+  const [selectedCellIsJson, setSelectedCellIsJson] = React.useState(false);
+
+  const handleContextMenuOpenChange = React.useCallback(
+    (open: boolean) => {
+      if (open) {
+        const text = getSingleSelectedCellText();
+        if (!text) {
+          setSelectedCellIsJson(false);
+          return;
+        }
+        const trimmed = text.trim();
+        if (
+          (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+          (trimmed.startsWith("[") && trimmed.endsWith("]"))
+        ) {
+          try {
+            JSON.parse(trimmed);
+            setSelectedCellIsJson(true);
+          } catch {
+            setSelectedCellIsJson(false);
+          }
+        } else {
+          setSelectedCellIsJson(false);
+        }
+      }
+    },
+    [getSingleSelectedCellText],
+  );
+
   const columns = React.useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
     if (!queryResult) return [];
 
     const selectColumn: ColumnDef<Record<string, unknown>> = {
       id: "select",
       size: 40,
+      enableResizing: false,
       header: ({ table }) => (
         <div className="flex w-full items-center justify-center">
           <Checkbox
@@ -464,6 +516,9 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
                 <QueryResultsContextMenu
                   onCopy={handleCopy}
                   onCopyInStatement={handleCopyInStatement}
+                  isJsonCell={selectedCellIsJson}
+                  onViewAsJson={handleViewAsJson}
+                  onOpenChange={handleContextMenuOpenChange}
                 >
                   <ResultsTable
                     data={data}
@@ -488,6 +543,9 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
           <QueryResultsContextMenu
             onCopy={handleCopy}
             onCopyInStatement={handleCopyInStatement}
+            isJsonCell={selectedCellIsJson}
+            onViewAsJson={handleViewAsJson}
+            onOpenChange={handleContextMenuOpenChange}
           >
             {queryResult?.message && queryResult.rows.length === 0 ? (
               <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
@@ -511,22 +569,7 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
                 <div className="relative mb-5">
                   <div className="absolute -inset-4 bg-muted/40 rounded-full blur-xl" />
                   <div className="relative flex items-center justify-center size-16 bg-gradient-to-br from-muted/60 to-muted/30 rounded-2xl border border-border/50 text-muted-foreground/50 shadow-sm">
-                    <svg
-                      className="size-8"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                      aria-hidden="true"
-                      role="img"
-                      aria-label="Empty table"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                      />
-                    </svg>
+                    <Inbox className="size-8" />
                   </div>
                 </div>
                 <h3 className="text-sm font-semibold text-foreground/70 mb-1">
@@ -651,303 +694,191 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
   );
 });
 
-export const QueryTabResultsContainer = React.memo(function QueryTabResultsContainer({
-  queryTabId,
-  isExecuting,
-  copyText,
-  onRunWithoutLimit,
-  onCancel,
-  onExplainResultTab,
-}: {
-  queryTabId: string;
-  isExecuting: boolean;
-  copyText: (text: string) => void | Promise<void>;
-  onRunWithoutLimit?: () => void | Promise<void>;
-  onCancel?: () => void;
-  onExplainResultTab?: (
-    queryTabId: string,
-    resultTabId: string,
-    sql: string,
-  ) => void;
-}) {
-  const { t } = useTranslation();
-
-  const tabResults = useQueryResultsStore(
-    React.useCallback(
-      (state) => state.resultsByTab[queryTabId] ?? EMPTY_RESULT_TABS,
-      [queryTabId],
-    ),
-  );
-
-  const activeResultTabId = useQueryResultsStore(
-    React.useCallback((state) => state.activeResultTabIdByTab[queryTabId], [queryTabId])
-  );
-
-  const effectiveActiveResultTabId = activeResultTabId || tabResults[0]?.id;
-
-  const setActiveResultTabId = useQueryResultsStore((state) => state.setActiveResultTabId);
-  const onRemoveResultTab = useQueryResultsStore((state) => state.removeResult);
-  const clearResults = useQueryResultsStore((state) => state.clearResults);
-  const updateResult = useQueryResultsStore((state) => state.updateResult);
-
-  const [editingTabId, setEditingTabId] = React.useState<string | null>(null);
-  const [editingName, setEditingName] = React.useState<string>("");
-  const inputRef = React.useRef<HTMLInputElement | null>(null);
-
-  React.useEffect(() => {
-    if (editingTabId && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editingTabId]);
-
-  const handleStartRename = React.useCallback(
-    (e: React.MouseEvent, tabId: string, currentName: string) => {
-      e.stopPropagation();
-      setEditingTabId(tabId);
-      setEditingName(currentName);
-    },
-    [],
-  );
-
-  const handleSaveRename = React.useCallback(
-    (resultTabId: string) => {
-      const trimmed = editingName.trim();
-      if (trimmed) {
-        updateResult(queryTabId, resultTabId, { name: trimmed } as any);
-      }
-      setEditingTabId(null);
-    },
-    [editingName, queryTabId, updateResult],
-  );
-
-  React.useEffect(() => {
-    if (!activeResultTabId && tabResults.length > 0) {
-      setActiveResultTabId(queryTabId, tabResults[0].id);
-    }
-  }, [
-    activeResultTabId,
-    tabResults,
+export const QueryTabResultsContainer = React.memo(
+  function QueryTabResultsContainer({
     queryTabId,
-    setActiveResultTabId,
-  ]);
+    isExecuting,
+    copyText,
+    onRunWithoutLimit,
+    onCancel,
+    onExplainResultTab,
+  }: {
+    queryTabId: string;
+    isExecuting: boolean;
+    copyText: (text: string) => void | Promise<void>;
+    onRunWithoutLimit?: () => void | Promise<void>;
+    onCancel?: () => void;
+    onExplainResultTab?: (
+      queryTabId: string,
+      resultTabId: string,
+      sql: string,
+    ) => void;
+  }) {
+    const { t } = useTranslation();
 
-  const getSqlPreview = React.useCallback(
-    (sql: string) => {
-      const cleaned = sql.trim().replace(/\s+/g, " ");
-      if (cleaned.length > 22) {
-        return `${cleaned.substring(0, 20)}...`;
+    const tabResults = useQueryResultsStore(
+      React.useCallback(
+        (state) => state.resultsByTab[queryTabId] ?? EMPTY_RESULT_TABS,
+        [queryTabId],
+      ),
+    );
+
+    const activeResultTabId = useQueryResultsStore(
+      React.useCallback(
+        (state) => state.activeResultTabIdByTab[queryTabId],
+        [queryTabId],
+      ),
+    );
+
+    const effectiveActiveResultTabId = activeResultTabId || tabResults[0]?.id;
+
+    const setActiveResultTabId = useQueryResultsStore(
+      (state) => state.setActiveResultTabId,
+    );
+    const onRemoveResultTab = useQueryResultsStore(
+      (state) => state.removeResult,
+    );
+    const clearResults = useQueryResultsStore((state) => state.clearResults);
+    const updateResult = useQueryResultsStore((state) => state.updateResult);
+
+    const [editingTabId, setEditingTabId] = React.useState<string | null>(null);
+    const [editingName, setEditingName] = React.useState<string>("");
+    const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+    React.useEffect(() => {
+      if (editingTabId && inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
       }
-      return cleaned || t("queryTabDefault");
-    },
-    [t],
-  );
+    }, [editingTabId]);
 
-  if (isExecuting && tabResults.length === 0) {
-    return (
-      <div className="flex h-full w-full items-center justify-center p-4 select-none">
-        <div className="flex flex-col items-center gap-4 animate-in fade-in duration-200">
-          <Loader2
-            className="size-8 animate-spin text-muted-foreground/50"
-            style={{ willChange: "transform" }}
-          />
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
-              {t("executingQuery")}
-            </span>
-            {onCancel && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 h-8 px-4 rounded-full border-destructive/30 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 cursor-pointer transition-all duration-150 active:scale-95 text-sm font-mono font-bold bg-transparent"
-                onClick={onCancel}
-              >
-                {t("cancel")}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
+    const handleStartRename = React.useCallback(
+      (e: React.MouseEvent, tabId: string, currentName: string) => {
+        e.stopPropagation();
+        setEditingTabId(tabId);
+        setEditingName(currentName);
+      },
+      [],
     );
-  }
 
-  if (tabResults.length === 0) {
-    return (
-      <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center select-none">
-        <div className="relative mb-6">
-          <div className="absolute -inset-6 bg-muted/50 rounded-full blur-2xl" />
-          <div className="relative flex items-center justify-center size-20 bg-gradient-to-br from-muted/80 to-muted/40 rounded-3xl border border-border/60 text-muted-foreground/60 shadow-sm">
-            <Terminal className="size-9" />
-          </div>
-        </div>
-        <h3 className="text-base font-semibold text-foreground/80 mb-1">
-          {t("noQueryResultsYet")}
-        </h3>
-        <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
-          {t("runQueryToSeeResults")}
-        </p>
-      </div>
+    const handleSaveRename = React.useCallback(
+      (resultTabId: string) => {
+        const trimmed = editingName.trim();
+        if (trimmed) {
+          updateResult(queryTabId, resultTabId, { name: trimmed } as any);
+        }
+        setEditingTabId(null);
+      },
+      [editingName, queryTabId, updateResult],
     );
-  }
 
-  return (
-    <Tabs
-      value={effectiveActiveResultTabId}
-      onValueChange={(val) => setActiveResultTabId(queryTabId, val)}
-      className="flex h-full flex-col overflow-hidden animate-in fade-in duration-200"
-    >
-      <div className="flex w-full items-center justify-between border-b px-2 py-1.5 bg-muted/30 shrink-0 select-none overflow-hidden min-h-[38px] gap-2">
-        <TabsList className="bg-transparent h-auto p-0 flex flex-row items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-none scroll-smooth flex-1 justify-start rounded-none">
-          {tabResults.map((tab) => {
-            const isError = !!tab.queryResult.error;
-            const isExplain = tab.isExplainMode;
+    React.useEffect(() => {
+      if (!activeResultTabId && tabResults.length > 0) {
+        setActiveResultTabId(queryTabId, tabResults[0].id);
+      }
+    }, [activeResultTabId, tabResults, queryTabId, setActiveResultTabId]);
 
-            return (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className={cn(
-                  "group flex items-center gap-2 rounded-md border px-2.5 py-1 text-sm transition duration-150 cursor-pointer select-none",
-                  "data-[state=active]:border-brand/15 data-[state=active]:bg-brand/5 data-[state=active]:text-brand dark:data-[state=active]:text-brand/80 data-[state=active]:font-medium data-[state=active]:shadow-xs",
-                  "data-[state=inactive]:border-transparent data-[state=inactive]:text-muted-foreground hover:data-[state=inactive]:bg-muted/65 hover:data-[state=inactive]:text-foreground bg-transparent shadow-none",
-                )}
-                title={tab.sql}
-              >
-                {isError ? (
-                  <AlertCircle className="size-3.5 text-rose-500 shrink-0" />
-                ) : isExplain ? (
-                  <Zap className="size-3.5 text-amber-500 shrink-0" />
-                ) : (
-                  <Terminal className="size-3.5 text-brand shrink-0" />
-                )}
+    const getSqlPreview = React.useCallback(
+      (sql: string) => {
+        const cleaned = sql.trim().replace(/\s+/g, " ");
+        if (cleaned.length > 22) {
+          return `${cleaned.substring(0, 20)}...`;
+        }
+        return cleaned || t("queryTabDefault");
+      },
+      [t],
+    );
 
-                {editingTabId === tab.id ? (
-                  <input
-                    type="text"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleSaveRename(tab.id);
-                      } else if (e.key === "Escape") {
-                        setEditingTabId(null);
-                      }
-                    }}
-                    onBlur={() => handleSaveRename(tab.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    className="h-5 px-1 font-mono text-[11px] bg-background border border-indigo-500/50 rounded outline-none w-[110px] text-foreground text-center"
-                    ref={inputRef}
-                  />
-                ) : (
-                  <span
-                    className="font-mono text-[11px] truncate max-w-[150px]"
-                    onDoubleClick={(e) =>
-                      handleStartRename(
-                        e,
-                        tab.id,
-                        (tab as any).name || getSqlPreview(tab.sql),
-                      )
-                    }
-                  >
-                    {(tab as any).name || getSqlPreview(tab.sql)}
-                  </span>
-                )}
-
-                {tab.executionTime !== null && (
-                  <span className="text-[9px] opacity-60 font-sans">
-                    ({tab.executionTime}ms)
-                  </span>
-                )}
-
-                <span
-                  role="button"
-                  tabIndex={0}
-                  aria-label={t("closeTab")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveResultTab(queryTabId, tab.id);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onRemoveResultTab(queryTabId, tab.id);
-                    }
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="size-4 shrink-0 flex items-center justify-center rounded-md hover:bg-rose-500/15 hover:text-rose-500 text-muted-foreground/60 transition-colors cursor-pointer"
+    if (isExecuting && tabResults.length === 0) {
+      return (
+        <div className="flex h-full w-full items-center justify-center p-4 select-none">
+          <div className="flex flex-col items-center gap-4 animate-in fade-in duration-200">
+            <Loader2
+              className="size-8 animate-spin text-muted-foreground/50"
+              style={{ willChange: "transform" }}
+            />
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
+                {t("executingQuery")}
+              </span>
+              {onCancel && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 h-8 px-4 rounded-full border-destructive/30 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 cursor-pointer transition-all duration-150 active:scale-95 text-sm font-mono font-bold bg-transparent"
+                  onClick={onCancel}
                 >
-                  <X className="size-2.5" />
-                </span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => {
-            clearResults(queryTabId);
-            toast.success(t("clearedAllResults"));
-          }}
-          className="h-7 w-7 text-muted-foreground hover:text-rose-500 rounded-md shrink-0 transition-colors cursor-pointer select-none"
-          title={t("closeAllResultTabs")}
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
-      </div>
-
-      <div className="flex-1 min-h-0 relative">
-        {isExecuting && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 select-none bg-background/60 backdrop-blur-[1px] animate-in fade-in duration-200">
-            <div className="flex flex-col items-center gap-4">
-              <Loader2
-                className="size-8 animate-spin text-muted-foreground/50"
-                style={{ willChange: "transform" }}
-              />
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
-                  {t("executingQuery")}
-                </span>
-                {onCancel && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 h-8 px-4 rounded-full border-destructive/30 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 cursor-pointer transition-all duration-150 active:scale-95 text-sm font-mono font-bold bg-transparent"
-                    onClick={onCancel}
-                  >
-                    {t("cancel")}
-                  </Button>
-                )}
-              </div>
+                  {t("cancel")}
+                </Button>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      );
+    }
 
-        {tabResults.map((tab) => {
-          return (
-            <TabsContent
-              key={tab.id}
-              value={tab.id}
-              forceMount
-              className="absolute inset-0 m-0 flex flex-col min-h-0 data-[state=inactive]:hidden focus-visible:ring-0 focus-visible:ring-offset-0 outline-none"
-            >
-              <QueryResultTabItem
-                tab={tab}
-                copyText={copyText}
-                onRunWithoutLimit={onRunWithoutLimit}
-                onExplainResultTab={onExplainResultTab}
-                activeQueryTabId={queryTabId}
-              />
-            </TabsContent>
-          );
-        })}
+    if (tabResults.length === 0) {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center select-none">
+          <div className="relative mb-6">
+            <div className="absolute -inset-6 bg-muted/50 rounded-full blur-2xl" />
+            <div className="relative flex items-center justify-center size-20 bg-gradient-to-br from-muted/80 to-muted/40 rounded-3xl border border-border/60 text-muted-foreground/60 shadow-sm">
+              <Terminal className="size-9" />
+            </div>
+          </div>
+          <h3 className="text-base font-semibold text-foreground/80 mb-1">
+            {t("noQueryResultsYet")}
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
+            {t("runQueryToSeeResults")}
+          </p>
+        </div>
+      );
+    }
+
+    const latestResultTab = tabResults[0];
+
+    return (
+      <div className="flex h-full flex-col overflow-hidden animate-in fade-in duration-200">
+        <div className="flex-1 min-h-0 relative">
+          {isExecuting && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center p-4 select-none bg-background/60 backdrop-blur-[1px] animate-in fade-in duration-200">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2
+                  className="size-8 animate-spin text-muted-foreground/50"
+                  style={{ willChange: "transform" }}
+                />
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground/70 animate-pulse">
+                    {t("executingQuery")}
+                  </span>
+                  {onCancel && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 h-8 px-4 rounded-full border-destructive/30 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 cursor-pointer transition-all duration-150 active:scale-95 text-sm font-mono font-bold bg-transparent"
+                      onClick={onCancel}
+                    >
+                      {t("cancel")}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <QueryResultTabItem
+            tab={latestResultTab}
+            copyText={copyText}
+            onRunWithoutLimit={onRunWithoutLimit}
+            onExplainResultTab={onExplainResultTab}
+            activeQueryTabId={queryTabId}
+          />
+        </div>
       </div>
-    </Tabs>
-  );
-});
+    );
+  },
+);
 
 export const QueryResultsPanel = React.memo(function QueryResultsPanel({
   isExecuting,
@@ -963,7 +894,7 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
   const activeQueryTabId = useTabStore((state) => state.activeQueryTabId);
 
   const queryTabIds = useTabStore(
-    useShallow((state) => state.queryTabs.map((t) => t.id))
+    useShallow((state) => state.queryTabs.map((t) => t.id)),
   );
 
   const selectedConnectionId = useSidebarStore(
@@ -975,10 +906,13 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
   const prevActiveTabIdRef = React.useRef(activeQueryTabId);
   const prevConnectionIdRef = React.useRef<string | null>(null);
 
-  const activeConnectionId = useTabStore((state) => {
-    const activeTab = state.queryTabs.find((t) => t.id === activeQueryTabId);
-    return activeTab?.connectionId || null;
-  }) || selectedConnectionId || null;
+  const activeConnectionId =
+    useTabStore((state) => {
+      const activeTab = state.queryTabs.find((t) => t.id === activeQueryTabId);
+      return activeTab?.connectionId || null;
+    }) ||
+    selectedConnectionId ||
+    null;
 
   React.useEffect(() => {
     const prevTabId = prevActiveTabIdRef.current;

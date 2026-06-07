@@ -3,7 +3,10 @@ import { useConnection } from "@/hooks/use-connection";
 import { postgresQueries } from "@/lib/erd/schema-adapter";
 import type { TableNodeData, Relation } from "@/lib/erd/types";
 
-export function useErdSchema(selectedConnectionId?: string) {
+export function useErdSchema(
+  selectedConnectionId?: string,
+  selectedDatabase?: string,
+) {
   const { activeConnection, connections } = useConnection();
   const [tables, setTables] = React.useState<TableNodeData[]>([]);
   const [relations, setRelations] = React.useState<Relation[]>([]);
@@ -23,13 +26,15 @@ export function useErdSchema(selectedConnectionId?: string) {
     setIsLoading(true);
     setError(null);
 
+    const dbToQuery = selectedDatabase || targetConnection.database;
+
     try {
       // Fetch Tables and Columns
       const tablesRes = await window.electron.executeQuery({
         dbType: targetConnection.dbType,
         host: targetConnection.host,
         port: String(targetConnection.port),
-        database: targetConnection.database,
+        database: dbToQuery,
         username: targetConnection.username,
         password: targetConnection.password,
         ssl: targetConnection.ssl,
@@ -47,7 +52,7 @@ export function useErdSchema(selectedConnectionId?: string) {
         dbType: targetConnection.dbType,
         host: targetConnection.host,
         port: String(targetConnection.port),
-        database: targetConnection.database,
+        database: dbToQuery,
         username: targetConnection.username,
         password: targetConnection.password,
         ssl: targetConnection.ssl,
@@ -100,7 +105,7 @@ export function useErdSchema(selectedConnectionId?: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [targetConnection]);
+  }, [targetConnection, selectedDatabase]);
 
   return { tables, relations, isLoading, error, fetchSchema };
 }

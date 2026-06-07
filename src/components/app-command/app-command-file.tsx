@@ -7,12 +7,9 @@ import {
   X,
   Sparkles,
   PanelLeft,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
   Sun,
   Moon,
-  RefreshCw,
+  Settings,
 } from "lucide-react";
 import { CommandGroup } from "@/components/ui/command";
 import { AppCommandItem as CommandItem } from "./app-command-item";
@@ -20,7 +17,6 @@ import { useGlobalEvents } from "@/hooks/use-global-events";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useTheme } from "@/hooks/use-theme";
 import { Shortcut } from "../ui/kbd";
-import { toast } from "sonner";
 
 interface FileCommandGroupProps {
   setOpen: (open: boolean) => void;
@@ -29,12 +25,13 @@ interface FileCommandGroupProps {
 
 export function FileCommandGroup({
   setOpen,
-  setShowSettingsDialog: _setShowSettingsDialog,
+  setShowSettingsDialog,
 }: FileCommandGroupProps) {
   const { t } = useTranslation();
-  const { dispatchCommand, dispatchAppearance } = useGlobalEvents();
   const { toggleSidebar } = useSidebar();
   const { theme, toggleTheme } = useTheme();
+  const { dispatchCommand } = useGlobalEvents();
+
   return (
     <CommandGroup heading={t("menuFile")}>
       <CommandItem
@@ -90,15 +87,12 @@ export function FileCommandGroup({
       <CommandItem
         setOpen={setOpen}
         onSelect={() => {
-          if (window.updater?.checkForUpdates) {
-            window.updater.checkForUpdates();
-          } else {
-            toast.error(t("updaterUnavailableInBrowser"));
-          }
+          setShowSettingsDialog(true);
         }}
       >
-        <RefreshCw className="size-4 text-violet-500 mr-2" />
-        {t("checkForUpdates")}
+        <Settings className="size-4 text-blue-500 mr-2" />
+        {t("settingsTitle")}
+        <Shortcut shortcut="⌘ + ," />
       </CommandItem>
       <CommandItem
         setOpen={setOpen}
@@ -119,36 +113,6 @@ export function FileCommandGroup({
         <PanelLeft className="size-4 text-sky-500 mr-2" />
         {t("toggleSidebar")}
         <Shortcut shortcut="⌘ + B" />
-      </CommandItem>
-      <CommandItem
-        setOpen={setOpen}
-        onSelect={() => {
-          dispatchAppearance("zoom-in");
-        }}
-      >
-        <ZoomIn className="size-4 text-brand mr-2" />
-        {t("increaseFontSize")}
-        <Shortcut shortcut="⌘ + Mouse Up" />
-      </CommandItem>
-      <CommandItem
-        setOpen={setOpen}
-        onSelect={() => {
-          dispatchAppearance("zoom-out");
-        }}
-      >
-        <ZoomOut className="size-4 text-orange-500 mr-2" />
-        {t("decreaseFontSize")}
-        <Shortcut shortcut="⌘ + Mouse Down" />
-      </CommandItem>
-      <CommandItem
-        setOpen={setOpen}
-        onSelect={() => {
-          dispatchAppearance("zoom-reset");
-        }}
-      >
-        <RotateCcw className="size-4 text-slate-500 mr-2" />
-        {t("resetFontSize")}
-        <Shortcut shortcut="⌘ + 0" />
       </CommandItem>
       <CommandItem
         setOpen={setOpen}

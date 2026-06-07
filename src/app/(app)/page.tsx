@@ -26,71 +26,66 @@ import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 
 // Import tool components
-import { QueryBenchmarkPage } from "@/components/query-benchmark-modal";
 import { QueryDiffPage } from "@/components/query-diff-modal";
-import { QueryHistorySnippetsPage } from "@/components/query-history-snippets-modal";
-import { JSONBSchemaPage } from "@/components/jsonb-schema-map";
-import SQLReferencePage from "@/components/sql-reference";
+import { DBDesignerPage } from "@/components/db-designer/db-designer-page";
 import { VisualQueryStoryPage } from "@/components/query/query-story-page";
 import { ERDContainer } from "@/components/erd/erd-container";
 import { DatabaseDumpPage } from "@/components/database-dump";
 
-const TabEditorContainer = React.memo(
-  function TabEditorContainer({
-    tabId,
-    isActive,
-    connections,
-    activeConnection,
-    theme,
-    getSelectedTextRef,
-  }: {
-    tabId: string;
-    isActive: boolean;
-    connections: any[];
-    activeConnection: any;
-    theme: string;
-    getSelectedTextRef: any;
-  }) {
-    const tab = useTabStore(
-      useShallow((state) => {
-        const t = state.queryTabs.find((q) => q.id === tabId);
-        if (!t) return null;
-        return {
-          id: t.id,
-          connectionId: t.connectionId,
-          type: t.type,
-          sql: t.sql,
-        };
-      }),
-    );
+const TabEditorContainer = React.memo(function TabEditorContainer({
+  tabId,
+  isActive,
+  connections,
+  activeConnection,
+  theme,
+  getSelectedTextRef,
+}: {
+  tabId: string;
+  isActive: boolean;
+  connections: any[];
+  activeConnection: any;
+  theme: string;
+  getSelectedTextRef: any;
+}) {
+  const tab = useTabStore(
+    useShallow((state) => {
+      const t = state.queryTabs.find((q) => q.id === tabId);
+      if (!t) return null;
+      return {
+        id: t.id,
+        connectionId: t.connectionId,
+        type: t.type,
+        sql: t.sql,
+      };
+    }),
+  );
 
-    const setQuerySql = useTabStore((state) => state.setQuerySql);
+  const setQuerySql = useTabStore((state) => state.setQuerySql);
 
-    if (!tab) return null;
+  if (!tab) return null;
 
-    const isSqlTab = !tab.type || tab.type === "sql";
-    if (!isSqlTab) return null;
+  const isSqlTab = !tab.type || tab.type === "sql";
+  if (!isSqlTab) return null;
 
-    const tabConnection =
-      connections.find((c) => c.id === tab.connectionId) || activeConnection;
+  const tabConnection =
+    connections.find((c) => c.id === tab.connectionId) || activeConnection;
 
-    return (
-      <div
-        className="absolute inset-0"
-        style={{ display: isActive ? "block" : "none" }}
-      >
-        <SqlEditor
-          value={tab.sql || ""}
-          onChange={setQuerySql}
-          theme={theme}
-          getSelectedTextRef={getSelectedTextRef}
-          activeTabId={isActive ? tabId : undefined}
-          connection={tabConnection}
-        />
-      </div>
-    );
-  }
-);
+  return (
+    <div
+      className="absolute inset-0"
+      style={{ display: isActive ? "block" : "none" }}
+    >
+      <SqlEditor
+        value={tab.sql || ""}
+        onChange={setQuerySql}
+        theme={theme}
+        getSelectedTextRef={getSelectedTextRef}
+        activeTabId={isActive ? tabId : undefined}
+        connection={tabConnection}
+      />
+    </div>
+  );
+});
 TabEditorContainer.displayName = "TabEditorContainer";
 
 const SqlWorkspace = React.memo(
@@ -111,7 +106,7 @@ const SqlWorkspace = React.memo(
     const [deferredTabId, setDeferredTabId] = React.useState(activeQueryTabId);
 
     const queryTabIds = useTabStore(
-      useShallow((state) => state.queryTabs.map((t) => t.id))
+      useShallow((state) => state.queryTabs.map((t) => t.id)),
     );
 
     const prevActiveTabIdRef = React.useRef(activeQueryTabId);
@@ -223,11 +218,8 @@ export default function Home() {
     return (
       !!activeTab &&
       [
-        "benchmark",
         "diff-optimizer",
-        "history-snippets",
-        "jsonb-schema-map",
-        "sql-reference",
+        "db-designer",
         "visual-query-story",
         "erd",
         "database-dump",
@@ -340,13 +332,8 @@ export default function Home() {
                 pointerEvents: isToolTabActive ? "auto" : "none",
               }}
             >
-              {activeTab?.type === "benchmark" && <QueryBenchmarkPage />}
               {activeTab?.type === "diff-optimizer" && <QueryDiffPage />}
-              {activeTab?.type === "history-snippets" && (
-                <QueryHistorySnippetsPage />
-              )}
-              {activeTab?.type === "jsonb-schema-map" && <JSONBSchemaPage />}
-              {activeTab?.type === "sql-reference" && <SQLReferencePage />}
+              {activeTab?.type === "db-designer" && <DBDesignerPage />}
               {activeTab?.type === "visual-query-story" && (
                 <VisualQueryStoryPage />
               )}

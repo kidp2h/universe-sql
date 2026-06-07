@@ -1,7 +1,6 @@
 import type { Monaco } from "@monaco-editor/react";
 import { PG_FUNCTIONS, PG_KEYWORDS } from "@/constants";
 import { type SQLConfig } from "@codemirror/lang-sql";
-
 export interface TableSchema {
   name: string;
   columns: string[];
@@ -35,7 +34,6 @@ const TABLE_TRIGGERS = [
   "UPDATE",
   "INTO",
 ];
-
 const COLUMN_TRIGGERS = [
   "SELECT",
   "WHERE",
@@ -50,7 +48,6 @@ const COLUMN_TRIGGERS = [
   "THEN",
   "ELSE",
 ];
-
 const SQL_KEYWORD_SET = new Set([
   ...TABLE_TRIGGERS,
   ...COLUMN_TRIGGERS,
@@ -134,22 +131,17 @@ export const parseTablesFromQuery = (
   sql: string,
 ): Map<string, string> | null => {
   if (!sql || sql.length === 0) return null;
-
   const lowerSql = sql.toLowerCase();
-
   // Quick check if query contains FROM/JOIN keywords
   if (!lowerSql.includes("from") && !lowerSql.includes("join")) {
     return null;
   }
-
   const tableMap = new Map<string, string>();
   const fromPattern =
     /(?:from|join)\s+(?:`)?([a-z_][a-z0-9_]*)(?:`)?(?:\s+(?:as\s+)?(?:`)?([a-z_][a-z0-9_]*)(?:`)?)?/gi;
-
   let match: any;
   let matchCount = 0;
   const MAX_MATCHES = 10; // Prevent regex catastrophic backtracking
-
   while (
     (match = fromPattern.exec(lowerSql)) !== null &&
     matchCount++ < MAX_MATCHES
@@ -158,7 +150,6 @@ export const parseTablesFromQuery = (
     const alias = match[2] || tableName;
     tableMap.set(alias, tableName);
   }
-
   return tableMap.size > 0 ? tableMap : null;
 };
 function extractCteColumns(
@@ -169,29 +160,23 @@ function extractCteColumns(
   const columns: string[] = [];
   const selectMatch = body.match(/SELECT\s+([\s\S]+?)\s+FROM/i);
   if (!selectMatch) return columns;
-
   const selectList = selectMatch[1].trim();
   const fromBody = body.slice(body.search(/\bFROM\b/i));
-
   const localAliases: Record<string, string> = {};
   const aliasRe = /(?:FROM|JOIN)\s+(\w+)(?:\s+AS\s+|\s+)(\w+)/gi;
   let m: RegExpExecArray | null;
   while ((m = aliasRe.exec(fromBody)) !== null) {
     localAliases[m[2].toLowerCase()] = m[1].toLowerCase();
   }
-
   function resolveLocalColumns(name: string): string[] {
     const lower = name.toLowerCase();
     const cte = ctes.find((c) => c.name === lower);
     if (cte) return cte.columns;
     return tables.find((t) => t.name.toLowerCase() === lower)?.columns ?? [];
   }
-
   // ✅ Helper: kiểm tra có phải keyword không
   const isKeyword = (word: string) => SQL_KEYWORD_SET.has(word.toUpperCase());
-
   const parts = selectList.split(",").map((p) => p.trim());
-
   for (const part of parts) {
     // alias.*
     const starMatch = part.match(/^(\w+)\.\*$/);
@@ -201,7 +186,6 @@ function extractCteColumns(
       columns.push(...resolveLocalColumns(tableName));
       continue;
     }
-
     // SELECT *
     if (part === "*") {
       const fromMatch = fromBody.match(/FROM\s+(\w+)/i);
@@ -210,7 +194,6 @@ function extractCteColumns(
       }
       continue;
     }
-
     // expr AS alias
     const asMatch = part.match(/\bAS\s+(\w+)\s*$/i);
     if (asMatch) {
@@ -218,7 +201,6 @@ function extractCteColumns(
       if (!isKeyword(col)) columns.push(col); // ✅
       continue;
     }
-
     // bare alias (no AS)
     const bareMatch = part.match(/\w+\s+(\w+)\s*$/);
     if (bareMatch && !isKeyword(bareMatch[1])) {
@@ -226,7 +208,6 @@ function extractCteColumns(
       columns.push(bareMatch[1]);
       continue;
     }
-
     // bare column
     const colMatch = part.match(/(\w+)\s*$/);
     if (colMatch && !isKeyword(colMatch[1])) {
@@ -234,7 +215,6 @@ function extractCteColumns(
       columns.push(colMatch[1]);
     }
   }
-
   return columns;
 }
 function lastIndexOfKeyword(upper: string, keyword: string): number {
@@ -244,27 +224,20 @@ function lastIndexOfKeyword(upper: string, keyword: string): number {
   while ((m = re.exec(upper)) !== null) pos = m.index;
   return pos;
 }
-
 export function extractCtes(
   sql: string,
   tables: TableSchema[] = [],
 ): CteSchema[] {
   const ctes: CteSchema[] = [];
-
   const withPos = sql.search(/\bWITH\b/i);
   if (withPos === -1) return ctes;
-
   let remaining = sql.slice(withPos + 4);
-
   const cteNameRe = /^\s*(\w+)\s+AS\s*\(/i;
-
   while (true) {
     const nameMatch = remaining.match(cteNameRe);
     if (!nameMatch) break;
-
     const name = nameMatch[1].toLowerCase();
     const startIdx = nameMatch[0].length;
-
     // Find matching closing paren
     let depth = 1;
     let i = startIdx;
@@ -273,29 +246,21 @@ export function extractCtes(
       else if (remaining[i] === ")") depth--;
       i++;
     }
-
     const body = remaining.slice(startIdx, i - 1);
-
     ctes.push({
       name,
       columns: extractCteColumns(body, tables, ctes), // ← truyền ctes đã parse để resolve chain
     });
-
     remaining = remaining.slice(i);
-
     const next = remaining.match(/^\s*(,|SELECT|INSERT|UPDATE|DELETE|;)/i);
     if (!next || next[1].toUpperCase() !== ",") break;
     remaining = remaining.slice(next[0].length);
   }
-
   return ctes;
 }
-
 // ─── Alias extractor ──────────────────────────────────────────────────────────
-
 export function extractAliases(sql: string, ctes: CteSchema[] = []): AliasMap {
   const aliases: AliasMap = {};
-
   const _cteNames = new Set(ctes.map((c) => c.name.toLowerCase()));
   // ✅ THÊM: Handle UPDATE table / INSERT INTO table
   const dmlRe =
@@ -309,7 +274,6 @@ export function extractAliases(sql: string, ctes: CteSchema[] = []): AliasMap {
       aliases[alias] = table;
     }
   }
-
   // Pass 1: FROM/JOIN table AS alias hoặc FROM/JOIN table alias (giữ nguyên)
   const fromJoinRe = /(?:FROM|JOIN)\s+(\w+)(?:\s+AS\s+|\s+)(\w+)/gi;
   while ((m = fromJoinRe.exec(sql)) !== null) {
@@ -320,7 +284,6 @@ export function extractAliases(sql: string, ctes: CteSchema[] = []): AliasMap {
     }
     aliases[table] = table;
   }
-
   // Pass 2: bare table không có alias
   const bareRe =
     /(?:FROM|JOIN)\s+(\w+)\s*(?:$|WHERE|ON|GROUP|ORDER|HAVING|LIMIT|INNER|LEFT|RIGHT|CROSS|FULL|JOIN|,|\))/gi;
@@ -328,7 +291,6 @@ export function extractAliases(sql: string, ctes: CteSchema[] = []): AliasMap {
     const table = m[1].toLowerCase();
     if (!aliases[table]) aliases[table] = table;
   }
-
   // Pass 3: trailing (query chưa hoàn chỉnh)
   const trailingRe = /(?:FROM|JOIN)\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?\s*$/gi;
   while ((m = trailingRe.exec(sql)) !== null) {
@@ -339,7 +301,6 @@ export function extractAliases(sql: string, ctes: CteSchema[] = []): AliasMap {
       aliases[alias] = table;
     }
   }
-
   return aliases;
 }
 function extractCurrentCteScope(
@@ -349,14 +310,11 @@ function extractCurrentCteScope(
   // Tìm CTE block (name AS (...)) nào đang bao quanh cursor
   const cteRe = /\b(\w+)\s+AS\s*\(/gi;
   let match: RegExpExecArray | null;
-
   while ((match = cteRe.exec(fullText)) !== null) {
     // Vị trí của dấu '(' mở CTE
     const openParen = match.index + match[0].length - 1;
-
     // Nếu '(' đã vượt qua cursor thì dừng
     if (openParen >= cursorOffset) break;
-
     // Tìm closing paren tương ứng
     let depth = 1;
     let i = openParen + 1;
@@ -366,18 +324,15 @@ function extractCurrentCteScope(
       i++;
     }
     const closeParen = i - 1;
-
     // Cursor nằm trong CTE block này
     if (cursorOffset >= openParen && cursorOffset <= closeParen) {
       return fullText.slice(openParen + 1, closeParen);
     }
   }
-
   // Cursor nằm ở final SELECT (ngoài mọi CTE)
   return fullText;
 }
 // ─── detectContext ────────────────────────────────────────────────────────────
-
 export function detectContext(
   textBeforeCursor: string,
   fullText?: string,
@@ -387,7 +342,6 @@ export function detectContext(
   const text = textBeforeCursor;
   const upper = text.toUpperCase();
   const offset = cursorOffset ?? text.length;
-
   // ── DDL guard ──────────────────────────────────────────────────────────────
   if (/\bALTER\s+TABLE\b/i.test(upper)) {
     const afterAlterTable = upper.replace(/^[\s\S]*\bALTER\s+TABLE\s+/i, "");
@@ -398,7 +352,6 @@ export function detectContext(
   if (/\bCREATE\s+TABLE\b/i.test(upper)) {
     return { type: "none" };
   }
-
   // ── Xác định CTE đang chứa cursor để loại khỏi aliases ──────────────────
   const currentCteName = fullText ? getCurrentCteName(fullText, offset) : null;
   // ✅ Nếu không nằm trong CTE nào → dùng final SELECT scope
@@ -407,7 +360,6 @@ export function detectContext(
       ? extractCurrentCteScope(fullText, offset)
       : extractFinalSelectScope(fullText) // ← thêm branch này
     : text;
-
   // CTEs có thể dùng trong scope này (loại bỏ CTE hiện tại)
   const visibleCtes = currentCteName
     ? ctes.filter((c) => c.name !== currentCteName)
@@ -418,7 +370,6 @@ export function detectContext(
     return { type: "none" }; // chỉ cần số, không suggest gì
   }
   // ──────────────────────────────────────────────────────────────────────────
-
   // ── ORDER BY / GROUP BY guard → suggest columns ───────────────────────────
   const orderGroupMatch = text.match(/\b(ORDER|GROUP)\s+BY\s+[\w\s,]*$/i);
   if (orderGroupMatch) {
@@ -437,10 +388,8 @@ export function detectContext(
     return { type: "column_of", resolvedTable, aliases: mergedAliases };
   }
   // ──────────────────────────────────────────────────────────────────────────
-
   // ✅ Dùng scope thay vì fullText → chỉ lấy alias trong CTE hiện tại
   const aliases = extractAliases(scope, visibleCtes);
-
   let lastTablePos = -1;
   let lastTableKw = "";
   const _upperScope = scope.toUpperCase(); // dùng scope để detect trigger position
@@ -451,7 +400,6 @@ export function detectContext(
       lastTableKw = kw;
     }
   }
-
   let lastColumnPos = -1;
   for (const kw of ["GROUP\\s+BY", "ORDER\\s+BY"]) {
     const pos = lastIndexOfKeyword(upper, kw);
@@ -461,41 +409,36 @@ export function detectContext(
     const pos = lastIndexOfKeyword(upper, kw);
     if (pos > lastColumnPos) lastColumnPos = pos;
   }
-
   if (lastTablePos === -1 && lastColumnPos === -1) return { type: "keyword" };
-
   const finalCtx =
     lastTablePos > lastColumnPos
       ? (() => {
-          const afterTrigger = text.slice(lastTablePos + lastTableKw.length);
-          const endsWithSpace = /[\s,]$/.test(afterTrigger);
-          if (!endsWithSpace) return { type: "table" as const };
-          const trimmed = afterTrigger.trimStart();
-          const tokens = trimmed.split(/[\s,()]+/).filter(Boolean);
-          const hasCompletedTable =
-            tokens.length > 0 &&
-            !SQL_KEYWORD_SET.has(tokens[0].toUpperCase()) &&
-            /\s/.test(afterTrigger.trimStart().slice(tokens[0].length));
-          if (hasCompletedTable) return { type: "keyword" as const };
-          return { type: "table" as const };
-        })()
+        const afterTrigger = text.slice(lastTablePos + lastTableKw.length);
+        const endsWithSpace = /[\s,]$/.test(afterTrigger);
+        if (!endsWithSpace) return { type: "table" as const };
+        const trimmed = afterTrigger.trimStart();
+        const tokens = trimmed.split(/[\s,()]+/).filter(Boolean);
+        const hasCompletedTable =
+          tokens.length > 0 &&
+          !SQL_KEYWORD_SET.has(tokens[0].toUpperCase()) &&
+          /\s/.test(afterTrigger.trimStart().slice(tokens[0].length));
+        if (hasCompletedTable) return { type: "keyword" as const };
+        return { type: "table" as const };
+      })()
       : (() => {
-          // ✅ Check nếu token cuối là identifier → cần operator
-          const trimmed = text.trimEnd();
-          const lastToken = trimmed.match(/(\w+)\s*$/)?.[1] ?? "";
-          const endsWithSpace = text !== trimmed; // có space sau token
-
-          if (
-            endsWithSpace &&
-            lastToken.length > 0 &&
-            !SQL_KEYWORD_SET.has(lastToken.toUpperCase())
-          ) {
-            return { type: "operator" as const };
-          }
-
-          return { type: "column" as const, aliases };
-        })();
-
+        // ✅ Check nếu token cuối là identifier → cần operator
+        const trimmed = text.trimEnd();
+        const lastToken = trimmed.match(/(\w+)\s*$/)?.[1] ?? "";
+        const endsWithSpace = text !== trimmed; // có space sau token
+        if (
+          endsWithSpace &&
+          lastToken.length > 0 &&
+          !SQL_KEYWORD_SET.has(lastToken.toUpperCase())
+        ) {
+          return { type: "operator" as const };
+        }
+        return { type: "column" as const, aliases };
+      })();
   return finalCtx;
 }
 function getCurrentCteName(
@@ -505,11 +448,9 @@ function getCurrentCteName(
   const cteRe = /\b(\w+)\s+AS\s*\(/gi;
   let match: RegExpExecArray | null;
   let currentCte: string | null = null;
-
   while ((match = cteRe.exec(fullText)) !== null) {
     const openParen = match.index + match[0].length - 1;
     if (openParen >= cursorOffset) break;
-
     // Tìm closing paren
     let depth = 1;
     let i = openParen + 1;
@@ -519,23 +460,19 @@ function getCurrentCteName(
       i++;
     }
     const closeParen = i - 1;
-
     if (cursorOffset >= openParen && cursorOffset <= closeParen) {
       currentCte = match[1].toLowerCase();
     }
   }
-
   return currentCte;
 }
 function extractFinalSelectScope(fullText: string): string {
   // Tìm SELECT cuối cùng nằm ngoài mọi CTE (depth = 0)
   let depth = 0;
   let finalSelectPos = -1;
-
   for (let i = 0; i < fullText.length; i++) {
     if (fullText[i] === "(") depth++;
     else if (fullText[i] === ")") depth--;
-
     if (depth === 0) {
       const slice = fullText.slice(i);
       if (/^SELECT\b/i.test(slice)) {
@@ -543,7 +480,6 @@ function extractFinalSelectScope(fullText: string): string {
       }
     }
   }
-
   return finalSelectPos !== -1 ? fullText.slice(finalSelectPos) : fullText;
 }
 export function buildSuggestions(
@@ -569,7 +505,6 @@ export function buildSuggestions(
   });
   const { CompletionItemKind: K, CompletionItemInsertTextRule: R } =
     monaco.languages;
-
   const ctx = detectContext(textBeforeCursor, fullText, ctes, cursorOffset);
   if (ctx.type === "none") return [];
   function resolveColumns(name: string): string[] {
@@ -578,7 +513,6 @@ export function buildSuggestions(
     if (cte) return cte.columns;
     return tables.find((t) => t.name.toLowerCase() === lower)?.columns ?? [];
   }
-
   switch (ctx.type) {
     case "keyword":
       return [
@@ -628,24 +562,19 @@ export function buildSuggestions(
           sortText: `2_${c.name}`,
         })),
       ];
-
     case "column": {
       const { aliases } = ctx;
-
       const colAliasMap = new Map<string, string[]>();
-
       for (const [alias, tableName] of Object.entries(aliases)) {
         const hasAlias = Object.entries(aliases).some(
           ([a, t]) => t === tableName && a !== tableName,
         );
         if (hasAlias && alias === tableName) continue;
-
         for (const col of resolveColumns(tableName)) {
           if (!colAliasMap.has(col)) colAliasMap.set(col, []);
           colAliasMap.get(col)?.push(alias);
         }
       }
-
       const cols: any[] = [];
       for (const [col, aliasList] of colAliasMap.entries()) {
         if (aliasList.length === 1) {
@@ -674,7 +603,6 @@ export function buildSuggestions(
           }
         }
       }
-
       const aliasSuggestions = Object.entries(aliases).map(
         ([alias, tableName]) => ({
           label: alias,
@@ -686,7 +614,6 @@ export function buildSuggestions(
           range,
         }),
       );
-
       return [
         ...cols, // ← columns trước
         ...aliasSuggestions, // ← aliases/tables sau
@@ -710,12 +637,10 @@ export function buildSuggestions(
         })),
       ];
     }
-
     case "column_of": {
       const { resolvedTable } = ctx;
       const columns = resolveColumns(resolvedTable);
       if (!columns.length) return [];
-
       return columns.map((col) => ({
         label: col,
         kind: K.Field,
@@ -727,31 +652,55 @@ export function buildSuggestions(
     }
   }
 }
-
-export function parseConnectionSchema(connection: any): TableSchema[] {
-  return (connection?.children ?? []) // schemas: [public, ...]
-    .flatMap((schema: any) => schema.children ?? []) // tables
-    .map((table: any) => ({
-      name: table.name,
-      columns: (
-        table.children?.find((c: any) => c.name === "Columns")?.children ?? []
-      ).map((col: any) => col.name as string),
-    }));
+/**
+ * Extracts all table nodes from a connection tree, regardless of depth.
+ *
+ * Handles two structures:
+ *  - App Sidebar (2-level):  connection.children = [schema, ...]  → schema.children = [table, ...]
+ *  - Explorer Panel (3-level): connection.children = [db, ...]  → db.children = [schema, ...] → schema.children = [table, ...]
+ *
+ * A node is considered a "table" when it has a "Columns" child.
+ */
+function getTableNodes(connection: any): any[] {
+  const tables: any[] = [];
+  for (const level1 of connection?.children ?? []) {
+    for (const level2 of level1?.children ?? []) {
+      // level2 is a table (flat structure): has a "Columns" child
+      if ((level2?.children ?? []).some((c: any) => c.name === "Columns")) {
+        tables.push(level2);
+      } else {
+        // level2 is a schema (nested structure): go one level deeper
+        for (const level3 of level2?.children ?? []) {
+          if ((level3?.children ?? []).some((c: any) => c.name === "Columns")) {
+            tables.push(level3);
+          }
+        }
+      }
+    }
+  }
+  return tables;
 }
-
+export function parseConnectionSchema(connection: any): TableSchema[] {
+  return getTableNodes(connection).map((table: any) => ({
+    name: table.name,
+    columns: (
+      table.children?.find((c: any) => c.name === "Columns")?.children ?? []
+    ).map((col: any) => col.name as string),
+  }));
+}
 export function parseConnectionCmSchema(
   connection: any,
 ): Record<string, string[]> {
-  return (connection?.children ?? [])
-    .flatMap((schema: any) => schema.children ?? [])
-    .reduce((acc: Record<string, string[]>, table: any) => {
+  return getTableNodes(connection).reduce(
+    (acc: Record<string, string[]>, table: any) => {
       acc[table.name] = (
         table.children?.find((c: any) => c.name === "Columns")?.children ?? []
       ).map((col: any) => col.name as string);
       return acc;
-    }, {});
+    },
+    {},
+  );
 }
-
 export function getQueryAtCursor(
   model: any,
   position: any,
@@ -759,20 +708,16 @@ export function getQueryAtCursor(
 ): { text: string; range: any } | null {
   const fullText: string = model.getValue();
   const cursorOffset: number = model.getOffsetAt(position);
-
   const statements: { text: string; start: number; end: number }[] = [];
   let currentStart = 0;
   let inQuote: string | null = null;
-
   for (let i = 0; i < fullText.length; i++) {
     const char = fullText[i];
-
     // Handle quotes
     if ((char === "'" || char === '"') && fullText[i - 1] !== "\\") {
       if (!inQuote) inQuote = char;
       else if (inQuote === char) inQuote = null;
     }
-
     // Handle statement end
     if (char === ";" && !inQuote) {
       statements.push({
@@ -783,7 +728,6 @@ export function getQueryAtCursor(
       currentStart = i + 1;
     }
   }
-
   if (currentStart < fullText.length) {
     statements.push({
       text: fullText.substring(currentStart),
@@ -791,26 +735,21 @@ export function getQueryAtCursor(
       end: fullText.length,
     });
   }
-
   let targetStatement: { text: string; start: number; end: number } | null =
     null;
-
   for (const s of statements) {
     if (cursorOffset >= s.start && cursorOffset <= s.end) {
       const segmentBeforeCursor = fullText
         .substring(s.start, cursorOffset)
         .trim();
       const segmentAfterCursor = fullText.substring(cursorOffset, s.end).trim();
-
       if (!segmentBeforeCursor && !segmentAfterCursor) {
         continue;
       }
-
       targetStatement = s;
       break;
     }
   }
-
   if (!targetStatement || !targetStatement.text.trim()) {
     for (let i = statements.length - 1; i >= 0; i--) {
       const s = statements[i];
@@ -820,17 +759,13 @@ export function getQueryAtCursor(
       }
     }
   }
-
   if (!targetStatement || !targetStatement.text.trim()) return null;
-
   const trimmedSql = targetStatement.text.trim();
   const relativeStart = targetStatement.text.indexOf(trimmedSql);
   const actualStartOffset = targetStatement.start + relativeStart;
   const actualEndOffset = actualStartOffset + trimmedSql.length;
-
   const startPos = model.getPositionAt(actualStartOffset);
   const endPos = model.getPositionAt(actualEndOffset);
-
   return {
     text: trimmedSql,
     range: new monaco.Range(
@@ -841,17 +776,13 @@ export function getQueryAtCursor(
     ),
   };
 }
-
 export function buildSchemaFromConnection(
   connection: any,
 ): SQLConfig["schema"] {
   const schema: SQLConfig["schema"] = {};
-
   const schemaNodes = connection?.children ?? [];
-
   for (const schemaNode of schemaNodes) {
     const tables = schemaNode?.children ?? [];
-
     for (const table of tables) {
       const columnsNode = table.children?.find(
         (c: any) => c.name === "Columns",
@@ -860,29 +791,23 @@ export function buildSchemaFromConnection(
       schema[table.name] = columns;
     }
   }
-
   return schema;
 }
-
 export function getQueryAtCursorString(
   fullText: string,
   cursorOffset: number,
 ): { text: string; range: { from: number; to: number } } | null {
   if (!fullText) return null;
-
   const statements: { text: string; start: number; end: number }[] = [];
   let currentStart = 0;
   let inQuote: string | null = null;
-
   for (let i = 0; i < fullText.length; i++) {
     const char = fullText[i];
-
     // Handle quotes
     if ((char === "'" || char === '"') && fullText[i - 1] !== "\\") {
       if (!inQuote) inQuote = char;
       else if (inQuote === char) inQuote = null;
     }
-
     // Handle statement end
     if (char === ";" && !inQuote) {
       statements.push({
@@ -893,7 +818,6 @@ export function getQueryAtCursorString(
       currentStart = i + 1;
     }
   }
-
   if (currentStart < fullText.length) {
     statements.push({
       text: fullText.substring(currentStart),
@@ -901,7 +825,6 @@ export function getQueryAtCursorString(
       end: fullText.length,
     });
   }
-
   let closestStatement: {
     text: string;
     start: number;
@@ -911,16 +834,13 @@ export function getQueryAtCursorString(
     trimmedText: string;
   } | null = null;
   let minDistance = Infinity;
-
   const validStatements = statements
     .map((s) => {
       const trimmedText = s.text.trim();
       if (!trimmedText) return null;
-
       const relativeStart = s.text.indexOf(trimmedText);
       const trimmedStart = s.start + relativeStart;
       const trimmedEnd = trimmedStart + trimmedText.length;
-
       return {
         ...s,
         trimmedStart,
@@ -929,7 +849,6 @@ export function getQueryAtCursorString(
       };
     })
     .filter((s): s is NonNullable<typeof s> => s !== null);
-
   for (const s of validStatements) {
     let distance = 0;
     if (cursorOffset < s.trimmedStart) {
@@ -939,7 +858,6 @@ export function getQueryAtCursorString(
     } else {
       distance = 0; // Directly inside the statement
     }
-
     if (distance < minDistance) {
       minDistance = distance;
       closestStatement = s;
@@ -952,9 +870,7 @@ export function getQueryAtCursorString(
       }
     }
   }
-
   if (!closestStatement) return null;
-
   return {
     text: closestStatement.trimmedText,
     range: {

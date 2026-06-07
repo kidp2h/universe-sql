@@ -15,7 +15,6 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { useTabStore } from "@/stores/tab-store";
 import { useConnection } from "@/hooks/use-connection";
 import { parseSqlToVisualStory } from "@/lib/query-story/logical-builder";
 import {
@@ -178,7 +177,7 @@ function CustomQueryNode({ data, selected }: NodeProps<XYFlowNode>) {
         <Handle
           type="target"
           position={Position.Left}
-          className="!w-2.5 !h-2.5 !bg-muted-foreground/40 !border-2 !border-background hover:!bg-brand"
+          className="!w-1.5 !h-1.5 !bg-muted-foreground/40 !border-2 !border-background hover:!bg-brand"
         />
       )}
 
@@ -228,7 +227,7 @@ function CustomQueryNode({ data, selected }: NodeProps<XYFlowNode>) {
         <Handle
           type="source"
           position={Position.Right}
-          className="!w-2.5 !h-2.5 !bg-muted-foreground/40 !border-2 !border-background hover:!bg-brand"
+          className="!w-1.5 !h-1.5 !bg-muted-foreground/40 !border-2 !border-background hover:!bg-brand"
         />
       )}
     </div>
@@ -243,7 +242,6 @@ const nodeTypes = {
 export function VisualQueryStoryPage() {
   const { t } = useTranslation();
   const { theme } = useTheme();
-  const queryTabs = useTabStore((state) => state.queryTabs);
   const { activeConnection, connections } = useConnection();
   const dummySelectedTextRef = React.useRef<any>(null);
 
@@ -263,37 +261,7 @@ export function VisualQueryStoryPage() {
     return connections.find((c) => c.id === selectedConnId) || activeConnection;
   }, [selectedConnId, connections, activeConnection]);
 
-  // Filter only normal SQL editor tabs
-  const sqlTabs = React.useMemo(() => {
-    return queryTabs.filter((tab) => !tab.type || tab.type === "sql");
-  }, [queryTabs]);
-
-  // Selected source SQL tab id
-  const [selectedTabId, setSelectedTabId] = React.useState<string>("");
   const [customSql, setCustomSql] = React.useState<string>("");
-
-  // Default to first open SQL tab when loaded, or "__custom" if no open tabs
-  React.useEffect(() => {
-    if (!selectedTabId) {
-      if (sqlTabs.length > 0) {
-        setSelectedTabId(sqlTabs[0].id);
-      } else {
-        setSelectedTabId("__custom");
-      }
-    }
-  }, [sqlTabs, selectedTabId]);
-
-  // Find active sql text
-  const selectedTab = React.useMemo(() => {
-    return sqlTabs.find((tab) => tab.id === selectedTabId);
-  }, [sqlTabs, selectedTabId]);
-
-  const sourceSql = React.useMemo(() => {
-    if (selectedTabId === "__custom") {
-      return customSql;
-    }
-    return selectedTab?.sql || "";
-  }, [selectedTabId, selectedTab, customSql]);
 
   // Visual layout states
   const [direction, setDirection] = React.useState<"LR" | "TB">("LR");
@@ -302,27 +270,24 @@ export function VisualQueryStoryPage() {
   const [reactFlowInstance, setReactFlowInstance] = React.useState<any>(null);
 
   // Explain caching state
-  const [explainCache, setExplainCache] = React.useState<Record<string, any[]>>(
-    {},
-  );
+  const [explainPlan, setExplainPlan] = React.useState<any[] | null>(null);
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
 
   // Core visual tree building
   const rebuildGraph = React.useCallback(() => {
-    if (!sourceSql.trim()) {
+    if (!customSql.trim()) {
       setNodes([]);
       setEdges([]);
       return;
     }
 
     // 1. Parse raw SQL into logical nodes & edges
-    const story = parseSqlToVisualStory(sourceSql);
+    const story = parseSqlToVisualStory(customSql);
 
     // 2. Enrich with explain details if already cached for this SQL tab
     let enrichedNodes = story.nodes;
-    const cachedPlan = explainCache[selectedTabId];
-    if (cachedPlan) {
-      enrichedNodes = enrichGraphWithExplain(story.nodes, cachedPlan);
+    if (explainPlan) {
+      enrichedNodes = enrichGraphWithExplain(story.nodes, explainPlan);
     }
 
     // 3. Coordinate layouts via Dagre
@@ -337,10 +302,9 @@ export function VisualQueryStoryPage() {
       }, 50);
     }
   }, [
-    sourceSql,
-    selectedTabId,
+    customSql,
     direction,
-    explainCache,
+    explainPlan,
     reactFlowInstance,
     setNodes,
     setEdges,
@@ -354,18 +318,18 @@ export function VisualQueryStoryPage() {
   // Handles node selection in flow to highlight editor
   const onNodeClick = React.useCallback(
     (_event: React.MouseEvent, node: XYFlowNode) => {
-      if (!selectedTabId || !node.data.sqlSnippet) return;
+      if (!node.data.sqlSnippet) return;
 
       // Fire a custom highlighting event targeted at CodeMirror
       const highlightEvent = new CustomEvent("usql:highlight-editor-text", {
         detail: {
           text: node.data.sqlSnippet,
-          tabId: selectedTabId,
+          tabId: "custom-query-story",
         },
       });
       globalThis.dispatchEvent(highlightEvent);
     },
-    [selectedTabId],
+    [],
   );
 
   // Executes EXPLAIN behind the scenes to enrich node cardinality
@@ -378,13 +342,13 @@ export function VisualQueryStoryPage() {
       toast.error(t("execEngineUnavailable"));
       return;
     }
-    if (!sourceSql.trim()) {
+    if (!customSql.trim()) {
       toast.error(t("sqlQueryEmpty"));
       return;
     }
 
     setIsAnalyzing(true);
-    const explainQuery = `EXPLAIN ${sourceSql}`;
+    const explainQuery = `EXPLAIN ${customSql}`;
 
     try {
       const res = await window.electron.executeQuery({
@@ -401,11 +365,7 @@ export function VisualQueryStoryPage() {
       });
 
       if (res.ok && res.rows) {
-        // Cache this explain result for the current tab
-        setExplainCache((prev) => ({
-          ...prev,
-          [selectedTabId]: res.rows || [],
-        }));
+        setExplainPlan(res.rows || null);
 
         toast.success(t("plannerDataEnriched"), {
           icon: <Sparkles className="size-4 text-brand" />,
@@ -421,36 +381,47 @@ export function VisualQueryStoryPage() {
   };
 
   // Export current graph canvas to high-quality image
-  const handleExportCanvas = () => {
+  const handleExportCanvas = async () => {
     const element = document.querySelector(".react-flow__viewport");
     if (!element) return;
 
-    toast.promise(
-      toPng(element as HTMLElement, {
-        backgroundColor: "var(--background)",
+    const toastId = toast.loading(
+      t("generatingSnapshot") || "Generating snapshot...",
+    );
+    const isDark = document.documentElement.classList.contains("dark");
+    if (isDark) {
+      document.documentElement.classList.remove("dark");
+    }
+
+    try {
+      const dataUrl = await toPng(element as HTMLElement, {
+        backgroundColor: "#ffffff",
         quality: 0.95,
         pixelRatio: 2,
-      }).then((dataUrl) => {
-        const link = document.createElement("a");
-        link.download = `query-story-${selectedTab?.title || "query"}.png`;
-        link.href = dataUrl;
-        link.click();
-      }),
-      {
-        loading: t("generatingSnapshot"),
-        success: t("graphExportedSuccess"),
-        error: t("snapshotCreationFailed"),
-      },
-    );
+      });
+      const link = document.createElement("a");
+      link.download = "query-story.png";
+      link.href = dataUrl;
+      link.click();
+      toast.success(
+        t("graphExportedSuccess") || "Graph exported successfully!",
+        { id: toastId },
+      );
+    } catch (err: any) {
+      console.error("Export canvas error:", err);
+      toast.error(t("snapshotCreationFailed") || "Failed to create snapshot.", {
+        id: toastId,
+      });
+    } finally {
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+      }
+    }
   };
 
   // Clear explain cache and reset graph view
   const handleResetGraph = () => {
-    setExplainCache((prev) => {
-      const copy = { ...prev };
-      delete copy[selectedTabId];
-      return copy;
-    });
+    setExplainPlan(null);
     rebuildGraph();
     if (reactFlowInstance) {
       reactFlowInstance.fitView({ padding: 0.15, duration: 400 });
@@ -468,32 +439,12 @@ export function VisualQueryStoryPage() {
       {/* Control Header Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b shrink-0 bg-muted/10">
         <div className="flex flex-wrap items-center gap-6">
-          {/* Source tab selector */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[11px] font-extrabold uppercase text-muted-foreground tracking-wider leading-none">
-                {t("sourceEditorLabel")}
-              </span>
-            </div>
-
-            <Select value={selectedTabId} onValueChange={setSelectedTabId}>
-              <SelectTrigger className="pl-3.5 pr-8 py-2 rounded-xl border border-border/80 bg-background text-sm font-bold text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand hover:bg-muted/30 transition min-w-[160px]">
-                <SelectValue placeholder={t("selectTabPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {sqlTabs.map((tab) => (
-                  <SelectItem key={tab.id} value={tab.id}>
-                    {tab.title}
-                  </SelectItem>
-                ))}
-                <SelectItem
-                  value="__custom"
-                  className="font-semibold text-brand"
-                >
-                  ✨ {t("customQueryOption")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Source Indicator */}
+          <div className="flex items-center gap-2 bg-brand/10 border border-brand/20 px-3 py-1.5 rounded-xl">
+            <Terminal className="size-4 text-brand shrink-0" />
+            <span className="text-xs font-extrabold uppercase tracking-wider text-brand leading-none">
+              {t("customQueryOption")}
+            </span>
           </div>
 
           {/* Connection Selector */}
@@ -568,7 +519,7 @@ export function VisualQueryStoryPage() {
           {/* EXPLAIN execution analyzer */}
           <button
             onClick={handleRunExplain}
-            disabled={isAnalyzing || !sourceSql.trim()}
+            disabled={isAnalyzing || !customSql.trim()}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand text-brand-foreground text-sm font-bold cursor-pointer transition hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs select-none"
           >
             {isAnalyzing ? (
@@ -582,7 +533,7 @@ export function VisualQueryStoryPage() {
           {/* Reset button */}
           <button
             onClick={handleResetGraph}
-            disabled={!sourceSql.trim()}
+            disabled={!customSql.trim()}
             title={t("resetExplainTooltip")}
             className="p-2 rounded-xl border border-border bg-background cursor-pointer hover:bg-muted/40 text-muted-foreground hover:text-foreground transition disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
           >
@@ -603,59 +554,61 @@ export function VisualQueryStoryPage() {
 
       {/* Main Flow Workspace */}
       <div className="flex-1 min-h-0 overflow-hidden bg-muted/5 dark:bg-muted/2">
-        <ResizablePanelGroup
-          key={selectedTabId === "__custom" ? "custom" : "standard"}
-          orientation="horizontal"
-          className="h-full w-full"
-        >
-          {/* Left Side: Custom SQL Editor Panel */}
-          {selectedTabId === "__custom" ? (
-            <ResizablePanel
-              defaultSize={25}
-              minSize={20}
-              maxSize={45}
-              className="flex flex-col bg-background min-w-[260px]"
-            >
-              {/* Panel Title */}
-              <div className="p-4 border-b flex items-center justify-between shrink-0 select-none bg-muted/20">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                  <Terminal className="size-3.5 text-brand" />
-                  {t("customQueryOption")}
-                </span>
-                <button
-                  onClick={() => setCustomSql("")}
-                  disabled={!customSql}
-                  className="text-[10px] font-bold uppercase text-muted-foreground hover:text-destructive disabled:opacity-40 disabled:hover:text-muted-foreground transition cursor-pointer select-none"
-                >
-                  {t("cancelLabel") || "Clear"}
-                </button>
+        <ResizablePanelGroup orientation="vertical" className="h-full w-full">
+          {/* Top Panel: SQL Editor */}
+          <ResizablePanel
+            defaultSize={35}
+            className="flex flex-col bg-background min-h-[120px]"
+          >
+            {/* Panel Title */}
+            <div className="p-4 border-b flex items-center justify-between shrink-0 select-none bg-muted/20">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <Terminal className="size-3.5 text-brand" />
+                {t("customQueryOption")}
+              </span>
+              <button
+                onClick={() => setCustomSql("")}
+                disabled={!customSql}
+                className="text-[10px] font-bold uppercase text-muted-foreground hover:text-destructive disabled:opacity-40 disabled:hover:text-muted-foreground transition cursor-pointer select-none"
+              >
+                {t("cancelLabel") || "Clear"}
+              </button>
+            </div>
+
+            {/* Embedded CodeMirror SQL Editor */}
+            <div className="flex-1 p-4 flex flex-col min-h-0">
+              <div className="flex-1 min-h-0 relative border border-border/85 rounded-xl overflow-hidden bg-background">
+                <SqlEditor
+                  value={customSql}
+                  onChange={setCustomSql}
+                  theme={theme}
+                  getSelectedTextRef={dummySelectedTextRef}
+                  activeTabId="custom-query-story"
+                  connection={currentConn}
+                />
               </div>
+            </div>
+          </ResizablePanel>
 
-              {/* Embedded CodeMirror SQL Editor */}
-              <div className="flex-1 p-4 flex flex-col min-h-0">
-                <div className="flex-1 min-h-0 relative border border-border/85 rounded-xl overflow-hidden bg-background">
-                  <SqlEditor
-                    value={customSql}
-                    onChange={setCustomSql}
-                    theme={theme}
-                    getSelectedTextRef={dummySelectedTextRef}
-                    activeTabId={
-                      selectedTabId === "__custom"
-                        ? "custom-query-story"
-                        : undefined
-                    }
-                    connection={currentConn}
-                  />
-                </div>
-              </div>
-            </ResizablePanel>
-          ) : null}
+          <ResizableHandle withHandle />
 
-          {selectedTabId === "__custom" ? <ResizableHandle withHandle /> : null}
-
-          {/* Right Side: Visual Flow Canvas */}
-          <ResizablePanel className="flex flex-col min-w-0 h-full relative">
-            {!sourceSql.trim() ? (
+          {/* Bottom Panel: Visual Flow Canvas */}
+          <ResizablePanel
+            className="flex flex-col min-w-0 h-full relative"
+            defaultSize={65}
+            style={
+              {
+                "--xy-background-color": "var(--background)",
+                "--xy-node-color": "var(--foreground)",
+                "--xy-edge-stroke": "var(--muted-foreground)",
+                "--xy-node-background-color": "transparent",
+                "--xy-node-border": "none",
+                "--xy-minimap-background-color": "var(--card)",
+                "--xy-minimap-mask-color": "rgba(0,0,0,0.6)",
+              } as any
+            }
+          >
+            {!customSql.trim() ? (
               /* Empty SQL text State */
               <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center select-none animate-in fade-in duration-300">
                 <div className="relative mb-6">
@@ -668,9 +621,7 @@ export function VisualQueryStoryPage() {
                   {t("queryIsEmptyTitle")}
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-[280px] leading-relaxed font-medium">
-                  {selectedTabId === "__custom"
-                    ? t("customQueryPlaceholder")
-                    : t("queryIsEmptyDesc")}
+                  {t("customQueryPlaceholder")}
                 </p>
               </div>
             ) : (
@@ -688,6 +639,7 @@ export function VisualQueryStoryPage() {
                 maxZoom={1.5}
                 defaultMarkerColor="var(--border)"
                 className="w-full h-full"
+                proOptions={{ hideAttribution: true }}
               >
                 <Background color="var(--border)" gap={16} size={1} />
                 <Controls className="!bg-background !border !border-border !rounded-xl !shadow-xs !overflow-hidden" />

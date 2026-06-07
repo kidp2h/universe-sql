@@ -5,7 +5,6 @@ import {
   Save,
   Layers,
   Sparkles,
-  X,
   Check,
   SaveAll,
 } from "lucide-react";
