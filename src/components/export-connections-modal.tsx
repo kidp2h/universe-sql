@@ -14,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSidebarStore } from "@/stores/sidebar-store";
-import type { Connection } from "@/stores/sidebar-store";
 import { Label } from "@/components/ui/label";
 
 export function ExportConnectionsModal() {
@@ -69,12 +68,14 @@ export function ExportConnectionsModal() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     setOpen(false);
   };
 
-  const allSelected = connections.length > 0 && selectedIds.size === connections.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < connections.length;
+  const allSelected =
+    connections.length > 0 && selectedIds.size === connections.length;
+  const someSelected =
+    selectedIds.size > 0 && selectedIds.size < connections.length;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -94,7 +95,7 @@ export function ExportConnectionsModal() {
             Select the database connections you want to export to a JSON file.
           </DialogDescription>
         </DialogHeader>
-        
+
         {connections.length === 0 ? (
           <div className="py-6 text-center text-muted-foreground text-sm">
             No connections to export.
@@ -104,23 +105,36 @@ export function ExportConnectionsModal() {
             <div className="flex items-center space-x-2 pb-2 border-b">
               <Checkbox
                 id="select-all"
-                checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                checked={
+                  allSelected ? true : someSelected ? "indeterminate" : false
+                }
                 onCheckedChange={(checked) => handleToggleAll(checked === true)}
               />
-              <Label htmlFor="select-all" className="font-semibold cursor-pointer">
+              <Label
+                htmlFor="select-all"
+                className="font-semibold cursor-pointer"
+              >
                 Select All ({selectedIds.size}/{connections.length})
               </Label>
             </div>
-            
+
             {connections.map((conn) => (
               <div key={conn.id} className="flex items-center space-x-2">
                 <Checkbox
                   id={`export-${conn.id}`}
                   checked={selectedIds.has(conn.id)}
-                  onCheckedChange={(checked) => handleToggleOne(conn.id, checked === true)}
+                  onCheckedChange={(checked) =>
+                    handleToggleOne(conn.id, checked === true)
+                  }
                 />
-                <Label htmlFor={`export-${conn.id}`} className="flex-1 cursor-pointer truncate">
-                  {conn.name} <span className="text-muted-foreground text-xs font-normal">({conn.host})</span>
+                <Label
+                  htmlFor={`export-${conn.id}`}
+                  className="flex-1 cursor-pointer truncate"
+                >
+                  {conn.name}{" "}
+                  <span className="text-muted-foreground text-xs font-normal">
+                    ({conn.host})
+                  </span>
                 </Label>
               </div>
             ))}

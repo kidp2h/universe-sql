@@ -55,8 +55,115 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const handleRefresh = React.useCallback(
     async (item: TreeDataItem) => {
-      const conn = connections.find((c) => c.id === item.id);
+      const connId = item.id.includes(":") ? item.id.split(":")[0] : item.id;
+      const conn = connections.find((c) => c.id === connId);
       if (!conn) return;
+
+      const isSchema =
+        item.id.includes(":schema:") && !item.id.includes(":table:");
+
+      if (isSchema) {
+        const schemaName = item.id.split(":schema:")[1];
+        logger.log(
+          `[Sidebar] Refreshing schema metadata: "${schemaName}" for connection "${conn.name}"`,
+        );
+
+        // Mark schema as loading in connection children
+        const updatedChildren = (conn.children || []).map((child) => {
+          if (child.id === item.id) {
+            return { ...child, isLoading: true };
+          }
+          return child;
+        });
+        useSidebarStore.getState().updateConnection({
+          ...conn,
+          children: updatedChildren,
+        });
+
+        if (window.electron?.getSchemaMetadata) {
+          try {
+            const res = await window.electron.getSchemaMetadata(
+              conn,
+              schemaName,
+            );
+            if (res.ok && res.schema) {
+              const s = res.schema;
+              const newSchemaNode = {
+                id: `${conn.id}:schema:${s.name}`,
+                name: s.name,
+                tableCount: s.tableCount,
+                children: s.tables.map((t: any) => ({
+                  id: `${conn.id}:schema:${s.name}:table:${t.name}`,
+                  name: t.name,
+                  size: t.size,
+                  children: [
+                    {
+                      id: `${conn.id}:schema:${s.name}:table:${t.name}:columns`,
+                      name: "Columns",
+                      count: t.columnCount,
+                      children: t.columns.map((col: any) => ({
+                        id: `${conn.id}:schema:${s.name}:table:${t.name}:column:${col.name}`,
+                        name: col.name,
+                        isPrimary: col.isPrimary,
+                        isForeign: col.isForeign,
+                        dataType: col.dataType,
+                        references: col.references,
+                        comment: col.comment || null,
+                      })),
+                    },
+                    {
+                      id: `${conn.id}:schema:${s.name}:table:${t.name}:indexes`,
+                      name: "Indexes",
+                      count: t.indexCount,
+                      children: t.indexes.map((idxName: any) => ({
+                        id: `${conn.id}:schema:${s.name}:table:${t.name}:index:${idxName}`,
+                        name: idxName,
+                      })),
+                    },
+                  ],
+                })),
+              };
+
+              const finalChildren = (conn.children || []).map((child) => {
+                if (child.id === item.id) {
+                  return { ...newSchemaNode, isLoading: false };
+                }
+                return child;
+              });
+
+              useSidebarStore.getState().updateConnection({
+                ...conn,
+                children: finalChildren,
+              });
+            } else {
+              // Revert loading on error
+              const finalChildren = (conn.children || []).map((child) => {
+                if (child.id === item.id) {
+                  return { ...child, isLoading: false };
+                }
+                return child;
+              });
+              useSidebarStore.getState().updateConnection({
+                ...conn,
+                children: finalChildren,
+              });
+            }
+          } catch (err) {
+            console.error("Error refreshing schema metadata in sidebar:", err);
+            const finalChildren = (conn.children || []).map((child) => {
+              if (child.id === item.id) {
+                return { ...child, isLoading: false };
+              }
+              return child;
+            });
+            useSidebarStore.getState().updateConnection({
+              ...conn,
+              children: finalChildren,
+            });
+          }
+        }
+        return;
+      }
 
       logger.log(
         `[Sidebar] Initiating metadata fetch for connection: "${conn.name}"`,

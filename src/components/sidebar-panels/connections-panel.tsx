@@ -76,6 +76,7 @@ export function ConnectionsPanel() {
                       isForeign: col.isForeign,
                       dataType: col.dataType,
                       references: col.references,
+                      comment: col.comment || null,
                     })),
                   },
                   {

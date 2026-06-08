@@ -6,11 +6,7 @@ import { useShallow } from "zustand/react/shallow";
 import { logger } from "@/lib/logger";
 import { useQueryHistoryStore } from "@/stores/query-history-store";
 import { useQueryCommands } from "./use-query-commands";
-import {
-  EMPTY_RESULT_TABS,
-  useQueryResultsStore,
-  type ResultTab,
-} from "@/stores/query-results-store";
+import { useQueryResultsStore } from "@/stores/query-results-store";
 import { useConnection } from "@/hooks/use-connection";
 
 function applyQueryLimit(
@@ -413,10 +409,12 @@ export function useQuery({
       );
 
       let sqlToExecute = overrideSql || currentActiveTab.sql;
+      let executedRange: { from: number; to: number } | null = null;
       if (!overrideSql && getSelectedTextRef.current) {
         const selectedText = getSelectedTextRef.current();
         if (selectedText?.text?.trim()) {
           sqlToExecute = selectedText.text;
+          executedRange = selectedText.range || null;
 
           // Dispatch highlight event
           if (selectedText.range) {
@@ -694,6 +692,13 @@ export function useQuery({
       }
 
       useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, true);
+      if (executedRange) {
+        globalThis.dispatchEvent(
+          new CustomEvent("usql:query-loading", {
+            detail: { tabId: currentActiveTab.id, range: executedRange },
+          }),
+        );
+      }
 
       let success = false;
       const startTime = performance.now();
@@ -749,6 +754,13 @@ export function useQuery({
             executionTime: null,
             sql: sqlToExecute,
           });
+          if (executedRange) {
+            globalThis.dispatchEvent(
+              new CustomEvent("usql:query-error", {
+                detail: { tabId: currentActiveTab.id, range: executedRange },
+              }),
+            );
+          }
           return;
         }
 
@@ -796,7 +808,16 @@ export function useQuery({
           sql: sqlToExecute,
         });
 
-        useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, false);
+        useQueryResultsStore
+          .getState()
+          .setIsExecuting(currentActiveTab.id, false);
+        if (executedRange) {
+          globalThis.dispatchEvent(
+            new CustomEvent("usql:query-success", {
+              detail: { tabId: currentActiveTab.id, range: executedRange },
+            }),
+          );
+        }
         success = true;
       } catch (err: any) {
         const errorMsg = err?.message || "Execution error";
@@ -806,10 +827,19 @@ export function useQuery({
           duration: elapsedErr,
           error: errorMsg,
         });
+        if (executedRange) {
+          globalThis.dispatchEvent(
+            new CustomEvent("usql:query-error", {
+              detail: { tabId: currentActiveTab.id, range: executedRange },
+            }),
+          );
+        }
         throw err;
       } finally {
         if (!success) {
-          useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, false);
+          useQueryResultsStore
+            .getState()
+            .setIsExecuting(currentActiveTab.id, false);
         }
       }
     },
@@ -961,7 +991,9 @@ export function useQuery({
       });
       throw err;
     } finally {
-      useQueryResultsStore.getState().setIsExecuting(currentActiveTab.id, false);
+      useQueryResultsStore
+        .getState()
+        .setIsExecuting(currentActiveTab.id, false);
     }
   }, [activeTabConnection, activeQueryTabId]);
 

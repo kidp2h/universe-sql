@@ -1,9 +1,7 @@
 import { useTranslation } from "react-i18next";
 import * as React from "react";
 import {
-  Zap,
   GitCompare,
-  Sparkles,
   Wrench,
   Workflow,
   Network,

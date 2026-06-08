@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { GitCompare, Zap, History, Database } from "lucide-react";
+import { GitCompare, Database } from "lucide-react";
 import { Shortcut } from "@/components/ui/kbd";
 import {
   MenubarContent,

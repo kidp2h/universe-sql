@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "../ui/badge";
 
 export interface ColumnData {
   id: string;

@@ -73,7 +73,6 @@ const SQL_KEYWORD_SET = new Set([
   "USING",
 ]);
 
-
 function extractCteColumns(
   body: string,
   tables: TableSchema[] = [],
@@ -176,12 +175,13 @@ export function extractCtes(
 }
 // ─── Alias extractor ──────────────────────────────────────────────────────────
 export function extractAliases(sql: string, ctes: CteSchema[] = []): AliasMap {
+  const cleanSql = sql.replace(/;/g, " ");
   const aliases: AliasMap = {};
   const _cteNames = new Set(ctes.map((c) => c.name.toLowerCase()));
   const dmlRe =
     /\b(?:UPDATE|INSERT\s+INTO)\s+(\w+)(?:\s+AS\s+(\w+)|\s+(\w+))?/gi;
   let m: RegExpExecArray | null;
-  while ((m = dmlRe.exec(sql)) !== null) {
+  while ((m = dmlRe.exec(cleanSql)) !== null) {
     const table = m[1].toLowerCase();
     const alias = (m[2] ?? m[3])?.toLowerCase();
     aliases[table] = table;
@@ -189,9 +189,9 @@ export function extractAliases(sql: string, ctes: CteSchema[] = []): AliasMap {
       aliases[alias] = table;
     }
   }
-  // Pass 1: FROM/JOIN table AS alias or FROM/JOIN table alias 
+  // Pass 1: FROM/JOIN table AS alias or FROM/JOIN table alias
   const fromJoinRe = /(?:FROM|JOIN)\s+(\w+)(?:\s+AS\s+|\s+)(\w+)/gi;
-  while ((m = fromJoinRe.exec(sql)) !== null) {
+  while ((m = fromJoinRe.exec(cleanSql)) !== null) {
     const table = m[1].toLowerCase();
     const alias = m[2].toLowerCase();
     if (!SQL_KEYWORD_SET.has(alias.toUpperCase())) {
@@ -202,13 +202,13 @@ export function extractAliases(sql: string, ctes: CteSchema[] = []): AliasMap {
   // Pass 2: bare table without alias
   const bareRe =
     /(?:FROM|JOIN)\s+(\w+)\s*(?:$|WHERE|ON|GROUP|ORDER|HAVING|LIMIT|INNER|LEFT|RIGHT|CROSS|FULL|JOIN|,|\))/gi;
-  while ((m = bareRe.exec(sql)) !== null) {
+  while ((m = bareRe.exec(cleanSql)) !== null) {
     const table = m[1].toLowerCase();
     if (!aliases[table]) aliases[table] = table;
   }
   // Pass 3: trailing
   const trailingRe = /(?:FROM|JOIN)\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?\s*$/gi;
-  while ((m = trailingRe.exec(sql)) !== null) {
+  while ((m = trailingRe.exec(cleanSql)) !== null) {
     const table = m[1].toLowerCase();
     const alias = m[2]?.toLowerCase();
     aliases[table] = table;
@@ -268,6 +268,82 @@ export function parseConnectionCmSchema(
     {},
   );
 }
+const STATEMENT_STARTERS = new Set([
+  "SELECT",
+  "WITH",
+  "INSERT",
+  "UPDATE",
+  "DELETE",
+  "CREATE",
+  "DROP",
+  "ALTER",
+  "TRUNCATE",
+  "REPLACE",
+  "EXPLAIN",
+  "GRANT",
+  "REVOKE",
+  "BEGIN",
+  "COMMIT",
+  "ROLLBACK",
+  "DECLARE",
+  "MERGE",
+]);
+
+function getNextRealWord(text: string, startIndex: number): string | null {
+  let idx = startIndex;
+  let inBlock = false;
+  while (idx < text.length) {
+    const char = text[idx];
+    const nextChar = text[idx + 1];
+
+    // Line comment
+    if (!inBlock && char === "-" && nextChar === "-") {
+      idx += 2;
+      while (idx < text.length && text[idx] !== "\n") {
+        idx++;
+      }
+      continue;
+    }
+
+    // Block comment
+    if (char === "/" && nextChar === "*") {
+      inBlock = true;
+      idx += 2;
+      continue;
+    }
+    if (inBlock && char === "*" && nextChar === "/") {
+      inBlock = false;
+      idx += 2;
+      continue;
+    }
+    if (inBlock) {
+      idx++;
+      continue;
+    }
+
+    // Whitespace
+    if (char === " " || char === "\t" || char === "\r" || char === "\n") {
+      idx++;
+      continue;
+    }
+
+    // Extract word
+    let word = "";
+    let tempIdx = idx;
+    while (tempIdx < text.length) {
+      const c = text[tempIdx];
+      if (/^[a-zA-Z_0-9]$/.test(c)) {
+        word += c;
+        tempIdx++;
+      } else {
+        break;
+      }
+    }
+    return word.toUpperCase();
+  }
+  return null;
+}
+
 export function getQueryAtCursorString(
   fullText: string,
   cursorOffset: number,
@@ -276,6 +352,11 @@ export function getQueryAtCursorString(
   const statements: { text: string; start: number; end: number }[] = [];
   let currentStart = 0;
   let inQuote: string | null = null;
+  let parenDepth = 0;
+
+  let firstWord = getNextRealWord(fullText, currentStart);
+  let inWith = firstWord === "WITH";
+
   for (let i = 0; i < fullText.length; i++) {
     const char = fullText[i];
     // Handle quotes
@@ -283,14 +364,70 @@ export function getQueryAtCursorString(
       if (!inQuote) inQuote = char;
       else if (inQuote === char) inQuote = null;
     }
+    // Handle parentheses
+    if (!inQuote) {
+      if (char === "(") {
+        parenDepth++;
+      } else if (char === ")") {
+        parenDepth = Math.max(0, parenDepth - 1);
+      }
+    }
     // Handle statement end
-    if (char === ";" && !inQuote) {
-      statements.push({
-        text: fullText.substring(currentStart, i + 1),
-        start: currentStart,
-        end: i + 1,
-      });
-      currentStart = i + 1;
+    if (!inQuote) {
+      if (char === ";") {
+        statements.push({
+          text: fullText.substring(currentStart, i + 1),
+          start: currentStart,
+          end: i + 1,
+        });
+        currentStart = i + 1;
+        parenDepth = 0; // reset depth on semicolon
+        firstWord = getNextRealWord(fullText, currentStart);
+        inWith = firstWord === "WITH";
+      } else if (char === "\n") {
+        if (parenDepth === 0) {
+          // Check if the lines are separated by a blank line (optional spaces/tabs followed by another newline)
+          let j = i + 1;
+          let isBlankLine = false;
+          while (j < fullText.length) {
+            const nextChar = fullText[j];
+            if (nextChar === "\n") {
+              isBlankLine = true;
+              break;
+            }
+            if (nextChar !== " " && nextChar !== "\t" && nextChar !== "\r") {
+              break;
+            }
+            j++;
+          }
+          if (isBlankLine) {
+            const nextWord = getNextRealWord(fullText, j + 1);
+            if (nextWord && STATEMENT_STARTERS.has(nextWord)) {
+              if (
+                inWith &&
+                (nextWord === "SELECT" ||
+                  nextWord === "INSERT" ||
+                  nextWord === "UPDATE" ||
+                  nextWord === "DELETE")
+              ) {
+                // This is the main query of the CTE, do not split!
+                inWith = false;
+              } else {
+                statements.push({
+                  text: fullText.substring(currentStart, j + 1),
+                  start: currentStart,
+                  end: j + 1,
+                });
+                currentStart = j + 1;
+                i = j; // skip the blank line characters
+                parenDepth = 0;
+                firstWord = getNextRealWord(fullText, currentStart);
+                inWith = firstWord === "WITH";
+              }
+            }
+          }
+        }
+      }
     }
   }
   if (currentStart < fullText.length) {

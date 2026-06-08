@@ -17,8 +17,7 @@ import {
   Loader2,
   HelpCircle,
 } from "lucide-react";
-import CodeMirror from "@uiw/react-codemirror";
-import { sql, PostgreSQL } from "@codemirror/lang-sql";
+import { SqlEditor } from "@/components/query/query-codemirror-editor";
 import {
   Popover,
   PopoverContent,
@@ -34,12 +33,6 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTheme } from "@/hooks/use-theme";
 import { useQueryHistoryStore } from "@/stores/query-history-store";
-import {
-  editorThemeLight,
-  editorThemeDark,
-  fontTheme,
-} from "@/components/query/query-codemirror-editor";
-import { parseConnectionCmSchema } from "@/lib/suggestions";
 import { useTranslation } from "react-i18next";
 import {
   Tooltip,
@@ -128,9 +121,6 @@ export function QueryDiffPage() {
   const history = useQueryHistoryStore((state) => state.history);
   const [popoverAOpen, setPopoverAOpen] = React.useState(false);
   const [popoverBOpen, setPopoverBOpen] = React.useState(false);
-  const schema = React.useMemo(() => {
-    return parseConnectionCmSchema(currentConn);
-  }, [currentConn]);
 
   const {
     queryA,
@@ -247,13 +237,10 @@ export function QueryDiffPage() {
             error ? "border-rose-500/50 focus-within:ring-rose-500/35" : ""
           }`}
         >
-          <CodeMirror
+          <SqlEditor
             value={query}
-            onChange={(val) => setQuery(val)}
-            theme={theme === "dark" ? editorThemeDark : editorThemeLight}
-            extensions={[sql({ dialect: PostgreSQL, schema }), fontTheme]}
-            className="h-full text-sm font-mono"
-            height="100%"
+            onChange={setQuery}
+            connection={currentConn}
             placeholder={placeholder}
             readOnly={isRunning}
           />

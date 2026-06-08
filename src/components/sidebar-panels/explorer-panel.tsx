@@ -33,6 +33,50 @@ const fetchDatabasesForConnection = async (conn: any) => {
   return [conn.database];
 };
 
+const mapMetadataToSchemaNodes = (
+  metadata: any[],
+  connId: string,
+  dbName: string,
+) => {
+  return metadata.map((s: any) => ({
+    id: `${connId}:db:${dbName}:schema:${s.name}`,
+    name: s.name,
+    type: "schema",
+    tableCount: s.tableCount,
+    children: s.tables.map((t: any) => ({
+      id: `${connId}:db:${dbName}:schema:${s.name}:table:${t.name}`,
+      name: t.name,
+      type: "table",
+      size: t.size,
+      children: [
+        {
+          id: `${connId}:db:${dbName}:schema:${s.name}:table:${t.name}:columns`,
+          name: "Columns",
+          count: t.columnCount,
+          children: t.columns.map((col: any) => ({
+            id: `${connId}:db:${dbName}:schema:${s.name}:table:${t.name}:column:${col.name}`,
+            name: col.name,
+            isPrimary: col.isPrimary,
+            isForeign: col.isForeign,
+            dataType: col.dataType,
+            references: col.references,
+            comment: col.comment || null,
+          })),
+        },
+        {
+          id: `${connId}:db:${dbName}:schema:${s.name}:table:${t.name}:indexes`,
+          name: "Indexes",
+          count: t.indexCount,
+          children: t.indexes.map((idxName: any) => ({
+            id: `${connId}:db:${dbName}:schema:${s.name}:table:${t.name}:index:${idxName}`,
+            name: idxName,
+          })),
+        },
+      ],
+    })),
+  }));
+};
+
 export function ExplorerPanel() {
   const { t } = useTranslation();
   const connections = useSidebarStore((state) => state.connections);
@@ -114,11 +158,46 @@ export function ExplorerPanel() {
 
         try {
           const dbNames = await fetchDatabasesForConnection(conn);
+          const activeDbName = conn.database || dbNames[0];
+
+          let activeDbChildren: any[] = [];
+          if (activeDbName) {
+            try {
+              const res = await window.electron.getFullMetadata({
+                ...conn,
+                database: activeDbName,
+              });
+              if (res.ok && res.metadata) {
+                activeDbChildren = mapMetadataToSchemaNodes(
+                  res.metadata,
+                  conn.id,
+                  activeDbName,
+                );
+              }
+            } catch (err) {
+              console.error(
+                "Error fetching database metadata during refresh:",
+                err,
+              );
+            }
+          }
+
           const dbNodes = dbNames.map((dbName) => ({
             id: `${conn.id}:db:${dbName}`,
             name: dbName,
             type: "database",
-            children: [],
+            children:
+              dbName === activeDbName
+                ? activeDbChildren.length > 0
+                  ? activeDbChildren
+                  : [
+                      {
+                        id: `${conn.id}:db:${dbName}:empty`,
+                        name: "No schemas found",
+                        disabled: true,
+                      },
+                    ]
+                : [],
           }));
 
           useSidebarStore.getState().updateConnection({
@@ -158,43 +237,11 @@ export function ExplorerPanel() {
           });
 
           if (res.ok && res.metadata) {
-            const schemaNodes = res.metadata.map((s: any) => ({
-              id: `${conn.id}:db:${dbName}:schema:${s.name}`,
-              name: s.name,
-              type: "schema",
-              tableCount: s.tableCount,
-              children: s.tables.map((t: any) => ({
-                id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}`,
-                name: t.name,
-                type: "table",
-                size: t.size,
-                children: [
-                  {
-                    id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:columns`,
-                    name: "Columns",
-                    count: t.columnCount,
-                    children: t.columns.map((col: any) => ({
-                      id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:column:${col.name}`,
-                      name: col.name,
-                      isPrimary: col.isPrimary,
-                      isForeign: col.isForeign,
-                      dataType: col.dataType,
-                      references: col.references,
-                      comment: col.comment || null,
-                    })),
-                  },
-                  {
-                    id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:indexes`,
-                    name: "Indexes",
-                    count: t.indexCount,
-                    children: t.indexes.map((idxName: any) => ({
-                      id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:index:${idxName}`,
-                      name: idxName,
-                    })),
-                  },
-                ],
-              })),
-            }));
+            const schemaNodes = mapMetadataToSchemaNodes(
+              res.metadata,
+              conn.id,
+              dbName,
+            );
 
             const finalDbNodes =
               conn.children?.map((child) => {
@@ -268,7 +315,10 @@ export function ExplorerPanel() {
         });
 
         try {
-          const res = await window.electron.getSchemaMetadata(conn, schemaName);
+          const res = await window.electron.getSchemaMetadata(
+            { ...conn, database: dbName },
+            schemaName,
+          );
 
           if (res.ok && res.schema) {
             const s = res.schema;
@@ -419,11 +469,46 @@ export function ExplorerPanel() {
 
           try {
             const dbNames = await fetchDatabasesForConnection(conn);
+            const activeDbName = conn.database || dbNames[0];
+
+            let activeDbChildren: any[] = [];
+            if (activeDbName) {
+              try {
+                const res = await window.electron.getFullMetadata({
+                  ...conn,
+                  database: activeDbName,
+                });
+                if (res.ok && res.metadata) {
+                  activeDbChildren = mapMetadataToSchemaNodes(
+                    res.metadata,
+                    conn.id,
+                    activeDbName,
+                  );
+                }
+              } catch (err) {
+                console.error(
+                  "Error loading database metadata on selection:",
+                  err,
+                );
+              }
+            }
+
             const dbNodes = dbNames.map((dbName) => ({
               id: `${conn.id}:db:${dbName}`,
               name: dbName,
               type: "database",
-              children: [],
+              children:
+                dbName === activeDbName
+                  ? activeDbChildren.length > 0
+                    ? activeDbChildren
+                    : [
+                        {
+                          id: `${conn.id}:db:${dbName}:empty`,
+                          name: "No schemas found",
+                          disabled: true,
+                        },
+                      ]
+                  : [],
             }));
 
             useSidebarStore.getState().updateConnection({
@@ -486,43 +571,11 @@ export function ExplorerPanel() {
             });
 
             if (res.ok && res.metadata) {
-              const schemaNodes = res.metadata.map((s: any) => ({
-                id: `${conn.id}:db:${dbName}:schema:${s.name}`,
-                name: s.name,
-                type: "schema",
-                tableCount: s.tableCount,
-                children: s.tables.map((t: any) => ({
-                  id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}`,
-                  name: t.name,
-                  type: "table",
-                  size: t.size,
-                  children: [
-                    {
-                      id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:columns`,
-                      name: "Columns",
-                      count: t.columnCount,
-                      children: t.columns.map((col: any) => ({
-                        id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:column:${col.name}`,
-                        name: col.name,
-                        isPrimary: col.isPrimary,
-                        isForeign: col.isForeign,
-                        dataType: col.dataType,
-                        references: col.references,
-                        comment: col.comment || null,
-                      })),
-                    },
-                    {
-                      id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:indexes`,
-                      name: "Indexes",
-                      count: t.indexCount,
-                      children: t.indexes.map((idxName: any) => ({
-                        id: `${conn.id}:db:${dbName}:schema:${s.name}:table:${t.name}:index:${idxName}`,
-                        name: idxName,
-                      })),
-                    },
-                  ],
-                })),
-              }));
+              const schemaNodes = mapMetadataToSchemaNodes(
+                res.metadata,
+                conn.id,
+                dbName,
+              );
 
               const finalDbNodes = children.map((child) => {
                 if (child.id === item.id) {

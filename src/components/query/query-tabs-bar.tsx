@@ -6,9 +6,7 @@ import {
   Folder,
   Table,
   X,
-  Zap,
   GitCompare,
-  History,
   Network,
   Download,
 } from "lucide-react";

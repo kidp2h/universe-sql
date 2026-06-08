@@ -17,7 +17,6 @@ import { Loader2 } from "lucide-react";
 import { DMLConfirmationDialog } from "@/components/query/dml-confirmation-dialog";
 import { CustomFilePicker } from "@/components/custom-file-picker";
 import { SqlEditor } from "@/components/query/query-codemirror-editor";
-import { useTheme } from "@/hooks/use-theme";
 import { useConnection } from "@/hooks/use-connection";
 
 import { useTabStore } from "@/stores/tab-store";

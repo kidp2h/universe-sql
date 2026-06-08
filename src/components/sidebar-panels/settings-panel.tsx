@@ -8,7 +8,6 @@ import {
   AlignLeft,
   AlignRight,
   Palette,
-  Languages,
   Type,
   Cpu,
 } from "lucide-react";

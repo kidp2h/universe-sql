@@ -41,6 +41,8 @@ export function ConnectionContextMenu({
   const conn = connections.find((c) => c.id === item.id);
   const openToolTab = useTabStore((state) => state.openToolTab);
 
+  const isLoading = !!(item.isLoading || conn?.isLoading);
+
   return (
     <>
       <ContextMenu>
@@ -49,6 +51,7 @@ export function ConnectionContextMenu({
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem
+            disabled={isLoading}
             onSelect={(e) => {
               e.stopPropagation();
               onRefresh(item);
@@ -60,6 +63,7 @@ export function ConnectionContextMenu({
             {t("menuRefresh")}
           </ContextMenuItem>
           <ContextMenuItem
+            disabled={isLoading}
             onSelect={(e) => {
               e.stopPropagation();
               const conn = connections.find((c) => c.id === item.id);
@@ -73,6 +77,7 @@ export function ConnectionContextMenu({
             <Shortcut shortcut="⌘ + N" />
           </ContextMenuItem>
           <ContextMenuItem
+            disabled={isLoading}
             onSelect={(e) => {
               e.stopPropagation();
               const conn = connections.find((c) => c.id === item.id);
@@ -85,6 +90,7 @@ export function ConnectionContextMenu({
             {t("viewErd")}
           </ContextMenuItem>
           <ContextMenuItem
+            disabled={isLoading}
             onSelect={(e) => {
               e.stopPropagation();
               const conn = connections.find((c) => c.id === item.id);
@@ -97,6 +103,7 @@ export function ConnectionContextMenu({
             {t("menuEditConnection")}
           </ContextMenuItem>
           <ContextMenuItem
+            disabled={isLoading}
             onSelect={(e) => {
               e.stopPropagation();
               if (conn) {
@@ -115,6 +122,7 @@ export function ConnectionContextMenu({
           <ContextMenuSeparator />
 
           <ContextMenuItem
+            disabled={isLoading}
             onSelect={(e) => {
               e.stopPropagation();
               openToolTab("database-dump", { connectionId: item.id });
@@ -127,6 +135,7 @@ export function ConnectionContextMenu({
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
+            disabled={isLoading}
             className="text-destructive focus:text-destructive"
             onSelect={(e) => {
               e.stopPropagation();

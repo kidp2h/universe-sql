@@ -19,7 +19,6 @@ import {
 } from "@/stores/query-snippets-store";
 import { useTabStore } from "@/stores/tab-store";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";

@@ -13,14 +13,37 @@ import {
   extractCtes,
   extractAliases,
 } from "@/lib/suggestions";
-import { EditorView, keymap } from "@codemirror/view";
-import { Prec } from "@codemirror/state";
+import {
+  EditorView,
+  keymap,
+  Decoration,
+  DecorationSet,
+  GutterMarker,
+  gutter,
+} from "@codemirror/view";
+import { Prec, RangeSet, StateField, StateEffect } from "@codemirror/state";
 import { setDiagnostics } from "@/lib/decoration";
-import { autocompletion, completeFromList, CompletionContext } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  completeFromList,
+  CompletionContext,
+} from "@codemirror/autocomplete";
 import { useQuerySnippetsStore } from "@/stores/query-snippets-store";
 import { useTheme } from "@/hooks/use-theme";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Copy, Check, Type, Package, LayoutGrid, Table2, Database, Network, Eye, Percent, SquareCode } from "lucide-react";
+import {
+  Copy,
+  Check,
+  Type,
+  Package,
+  LayoutGrid,
+  Table2,
+  Database,
+  Network,
+  Eye,
+  Percent,
+  SquareCode,
+} from "lucide-react";
 // Pre-render lucide icons to HTML strings (module-level, runs once)
 const _copyIconHtml = renderToStaticMarkup(
   React.createElement(Copy, { size: 12, strokeWidth: 2 }),
@@ -63,7 +86,7 @@ function iconSvg(type: string): string {
     type: tableSvg,
     property: columnSvg,
     constant: functionSvg, // CTE uses function icon (purple)
-    variable: columnSvg,  // alias uses column icon
+    variable: columnSvg, // alias uses column icon
     database: databaseSvg,
     schema: schemaSvg,
     view: viewSvg,
@@ -260,6 +283,113 @@ const autocompleteTheme = autocompletion({
     },
   ],
 });
+// ── Query Block Highlight ────────────────────────────────────────────────────
+export const activeQueryHighlightField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    if (!tr.docChanged && !tr.selection) {
+      return deco.map(tr.changes);
+    }
+    const doc = tr.state.doc;
+    const { from, to } = tr.state.selection.main;
+    if (from !== to) {
+      return Decoration.none;
+    }
+    const activeQuery = getQueryAtCursorString(doc.toString(), from);
+    if (!activeQuery) {
+      return Decoration.none;
+    }
+    const qFrom = activeQuery.range.from;
+    const qTo = activeQuery.range.to;
+    const startLine = doc.lineAt(qFrom);
+    const endLine = doc.lineAt(qTo);
+    const decos: any[] = [];
+    if (startLine.number === endLine.number) {
+      decos.push(
+        Decoration.line({
+          attributes: { class: "cm-active-query-single" },
+        }).range(startLine.from),
+      );
+    } else {
+      for (let i = startLine.number; i <= endLine.number; i++) {
+        const line = doc.line(i);
+        let className = "cm-active-query-middle";
+        if (i === startLine.number) {
+          className = "cm-active-query-first";
+        } else if (i === endLine.number) {
+          className = "cm-active-query-last";
+        }
+        decos.push(
+          Decoration.line({
+            attributes: { class: className },
+          }).range(line.from),
+        );
+      }
+    }
+    return Decoration.set(decos, true);
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+// ── Query Gutter Status Indicators ────────────────────────────────────────────
+export const setQueryStatus = StateEffect.define<{
+  line: number;
+  status: "success" | "error" | "loading";
+}>();
+
+export const clearQueryStatus = StateEffect.define<null>();
+
+class QueryStatusMarker extends GutterMarker {
+  constructor(readonly status: "success" | "error" | "loading") {
+    super();
+  }
+  toDOM() {
+    const el = document.createElement("div");
+    el.className = `cm-query-status-marker cm-query-status-${this.status}`;
+    if (this.status === "success") {
+      el.textContent = "✓";
+      el.style.cssText =
+        "color: #22c55e; font-weight: bold; font-size: 14px; text-align: center; width: 100%; display: flex; align-items: center; justify-content: center; height: 100%;";
+    } else if (this.status === "error") {
+      el.textContent = "✗";
+      el.style.cssText =
+        "color: #ef4444; font-weight: bold; font-size: 14px; text-align: center; width: 100%; display: flex; align-items: center; justify-content: center; height: 100%;";
+    } else if (this.status === "loading") {
+      el.textContent = "●";
+      el.style.cssText =
+        "color: #eab308; font-weight: bold; font-size: 14px; text-align: center; width: 100%; display: flex; align-items: center; justify-content: center; height: 100%; animation: pulse 1s infinite;";
+    }
+    return el;
+  }
+}
+
+export const queryStatusGutterField = StateField.define<RangeSet<GutterMarker>>(
+  {
+    create: () => RangeSet.empty,
+    update(markers, tr) {
+      markers = markers.map(tr.changes);
+      for (const effect of tr.effects) {
+        if (effect.is(setQueryStatus)) {
+          const { line, status } = effect.value;
+          if (line <= tr.state.doc.lines) {
+            const docLine = tr.state.doc.line(line);
+            markers = RangeSet.empty;
+            markers = markers.update({
+              add: [new QueryStatusMarker(status).range(docLine.from)],
+            });
+          }
+        } else if (effect.is(clearQueryStatus)) {
+          markers = RangeSet.empty;
+        }
+      }
+      if (tr.docChanged) {
+        markers = RangeSet.empty;
+      }
+      return markers;
+    },
+  },
+);
+
 // Dynamic CodeMirror theme bound to application CSS variables (shadcn light preset)
 export const editorThemeLight = createTheme({
   theme: "light",
@@ -333,9 +463,9 @@ export const fontTheme = EditorView.theme({
   },
   // selection
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection":
-  {
-    backgroundColor: "var(--editor-selection) !important",
-  },
+    {
+      backgroundColor: "var(--editor-selection) !important",
+    },
   // active line highlight
   ".cm-activeLine": {
     backgroundColor: "var(--editor-line-highlight) !important",
@@ -541,6 +671,46 @@ export const fontTheme = EditorView.theme({
     fontWeight: "bold !important",
     textTransform: "uppercase !important",
   },
+  // active query block highlight styles
+  ".cm-active-query-first": {
+    boxShadow:
+      "inset 0 1px 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset 1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset -1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent) !important",
+    backgroundColor:
+      "color-mix(in srgb, var(--brand) 4%, transparent) !important",
+    borderTopLeftRadius: "6px",
+    borderTopRightRadius: "6px",
+  },
+  ".cm-active-query-middle": {
+    boxShadow:
+      "inset 1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset -1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent) !important",
+    backgroundColor:
+      "color-mix(in srgb, var(--brand) 4%, transparent) !important",
+  },
+  ".cm-active-query-last": {
+    boxShadow:
+      "inset 0 -1px 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset 1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset -1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent) !important",
+    backgroundColor:
+      "color-mix(in srgb, var(--brand) 4%, transparent) !important",
+    borderBottomLeftRadius: "6px",
+    borderBottomRightRadius: "6px",
+  },
+  ".cm-active-query-single": {
+    boxShadow:
+      "inset 0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent) !important",
+    backgroundColor:
+      "color-mix(in srgb, var(--brand) 4%, transparent) !important",
+    borderRadius: "6px",
+  },
+  // query status gutter style
+  ".cm-query-status-gutter": {
+    width: "24px",
+  },
+  ".cm-query-status-marker": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
+  },
 });
 export const SqlEditor = React.memo(
   function SqlEditor({
@@ -549,12 +719,18 @@ export const SqlEditor = React.memo(
     getSelectedTextRef,
     activeTabId,
     connection,
+    placeholder,
+    readOnly,
+    height,
   }: {
     value: string;
     onChange: (val: string) => void;
-    getSelectedTextRef: any;
+    getSelectedTextRef?: any;
     activeTabId?: string;
     connection?: any;
+    placeholder?: string;
+    readOnly?: boolean;
+    height?: string;
   }) {
     logger.log(
       `[SqlEditor] Rendered: value length = ${value?.length ?? 0}, activeTabId = ${activeTabId}`,
@@ -602,9 +778,7 @@ export const SqlEditor = React.memo(
           }
         }
       }
-      logger.log(
-        `[SqlEditor] colMetaMap rebuilt: ${map.size} tables indexed`,
-      );
+      logger.log(`[SqlEditor] colMetaMap rebuilt: ${map.size} tables indexed`);
       return map;
     }, [connection]);
     const editorRef = React.useRef<EditorView | null>(null);
@@ -708,6 +882,61 @@ export const SqlEditor = React.memo(
       };
     }, [activeTabId]);
     React.useEffect(() => {
+      let clearTimer: any = null;
+      const handleQueryStatus = (event: Event) => {
+        const customEvent = event as CustomEvent<{
+          tabId: string;
+          range?: { from: number; to: number };
+        }>;
+        const detail = customEvent.detail;
+        if (!detail || !editorRef.current) return;
+        if (detail.tabId !== activeTabId) return;
+
+        const view = editorRef.current;
+        const range = detail.range;
+        if (!range) return;
+
+        try {
+          const lineNum = view.state.doc.lineAt(range.from).number;
+          if (event.type === "usql:query-loading") {
+            if (clearTimer) clearTimeout(clearTimer);
+            view.dispatch({
+              effects: setQueryStatus.of({ line: lineNum, status: "loading" }),
+            });
+          } else if (event.type === "usql:query-success") {
+            if (clearTimer) clearTimeout(clearTimer);
+            view.dispatch({
+              effects: setQueryStatus.of({ line: lineNum, status: "success" }),
+            });
+            clearTimer = setTimeout(() => {
+              view.dispatch({ effects: clearQueryStatus.of(null) });
+            }, 4000);
+          } else if (event.type === "usql:query-error") {
+            if (clearTimer) clearTimeout(clearTimer);
+            view.dispatch({
+              effects: setQueryStatus.of({ line: lineNum, status: "error" }),
+            });
+            clearTimer = setTimeout(() => {
+              view.dispatch({ effects: clearQueryStatus.of(null) });
+            }, 4000);
+          }
+        } catch (e) {
+          console.error("Failed to set query status marker in gutter:", e);
+        }
+      };
+
+      globalThis.addEventListener("usql:query-loading", handleQueryStatus);
+      globalThis.addEventListener("usql:query-success", handleQueryStatus);
+      globalThis.addEventListener("usql:query-error", handleQueryStatus);
+
+      return () => {
+        if (clearTimer) clearTimeout(clearTimer);
+        globalThis.removeEventListener("usql:query-loading", handleQueryStatus);
+        globalThis.removeEventListener("usql:query-success", handleQueryStatus);
+        globalThis.removeEventListener("usql:query-error", handleQueryStatus);
+      };
+    }, [activeTabId]);
+    React.useEffect(() => {
       if (getSelectedTextRef && activeTabId) {
         getSelectedTextRef.current = () => {
           const view = editorRef.current;
@@ -807,9 +1036,11 @@ export const SqlEditor = React.memo(
           }
           const makeRow = (label: string, valueEl: HTMLElement) => {
             const row = document.createElement("div");
-            row.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:3px;";
+            row.style.cssText =
+              "display:flex;gap:6px;align-items:center;margin-bottom:3px;";
             const lbl = document.createElement("span");
-            lbl.style.cssText = "color:var(--muted-foreground);min-width:56px;font-size:11px;";
+            lbl.style.cssText =
+              "color:var(--muted-foreground);min-width:56px;font-size:11px;";
             lbl.textContent = label;
             row.appendChild(lbl);
             row.appendChild(valueEl);
@@ -822,27 +1053,39 @@ export const SqlEditor = React.memo(
             return c;
           };
           // table
-          el.appendChild(makeRow("table", code(tableName, "var(--completion-type-fg)")));
+          el.appendChild(
+            makeRow("table", code(tableName, "var(--completion-type-fg)")),
+          );
           if (colMeta) {
             // dataType (node stores as .dataType from tree)
-            const dt: string | undefined = colMeta.dataType ?? colMeta.data_type ?? colMeta.type;
-            if (dt) el.appendChild(makeRow("type", code(dt.toUpperCase(), "var(--editor-keyword)")));
+            const dt: string | undefined =
+              colMeta.dataType ?? colMeta.data_type ?? colMeta.type;
+            if (dt)
+              el.appendChild(
+                makeRow(
+                  "type",
+                  code(dt.toUpperCase(), "var(--editor-keyword)"),
+                ),
+              );
             // isPrimary / isForeign badges
             if (colMeta.isPrimary || colMeta.isForeign) {
               const badgeWrap = document.createElement("div");
-              badgeWrap.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:3px;";
+              badgeWrap.style.cssText =
+                "display:flex;gap:4px;align-items:center;margin-bottom:3px;";
               const padLbl = document.createElement("span");
               padLbl.style.cssText = "min-width:56px;";
               badgeWrap.appendChild(padLbl);
               if (colMeta.isPrimary) {
                 const b = document.createElement("span");
-                b.style.cssText = "font-size:10px;background:var(--completion-function-bg);color:var(--completion-function-fg);border:1px solid var(--completion-function-border);border-radius:3px;padding:1px 5px;font-weight:700;";
+                b.style.cssText =
+                  "font-size:10px;background:var(--completion-function-bg);color:var(--completion-function-fg);border:1px solid var(--completion-function-border);border-radius:3px;padding:1px 5px;font-weight:700;";
                 b.textContent = "PK";
                 badgeWrap.appendChild(b);
               }
               if (colMeta.isForeign) {
                 const b = document.createElement("span");
-                b.style.cssText = "font-size:10px;background:var(--completion-type-bg);color:var(--completion-type-fg);border:1px solid var(--completion-type-border);border-radius:3px;padding:1px 5px;font-weight:700;";
+                b.style.cssText =
+                  "font-size:10px;background:var(--completion-type-bg);color:var(--completion-type-fg);border:1px solid var(--completion-type-border);border-radius:3px;padding:1px 5px;font-weight:700;";
                 b.textContent = "FK";
                 badgeWrap.appendChild(b);
               }
@@ -851,7 +1094,8 @@ export const SqlEditor = React.memo(
             // references
             if (colMeta.references) {
               const refCode = document.createElement("code");
-              refCode.style.cssText = "background:var(--muted);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--muted-foreground);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;";
+              refCode.style.cssText =
+                "background:var(--muted);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--muted-foreground);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;";
               refCode.textContent = `→ ${colMeta.references}`;
               el.appendChild(makeRow("ref", refCode));
             }
@@ -861,9 +1105,9 @@ export const SqlEditor = React.memo(
           const cols = schema
             ? (schema[tableName] ??
               schema[
-              Object.keys(schema).find(
-                (k) => k.toLowerCase() === tableName.toLowerCase(),
-              ) ?? ""
+                Object.keys(schema).find(
+                  (k) => k.toLowerCase() === tableName.toLowerCase(),
+                ) ?? ""
               ] ??
               [])
             : [];
@@ -873,7 +1117,8 @@ export const SqlEditor = React.memo(
           header.textContent = tableName;
           el.appendChild(header);
           const countRow = document.createElement("div");
-          countRow.style.cssText = "color:var(--muted-foreground);margin-bottom:6px;font-size:11px;";
+          countRow.style.cssText =
+            "color:var(--muted-foreground);margin-bottom:6px;font-size:11px;";
           countRow.textContent = `${cols.length} column${cols.length !== 1 ? "s" : ""}`;
           el.appendChild(countRow);
           if (cols.length > 0) {
@@ -890,7 +1135,8 @@ export const SqlEditor = React.memo(
             el.appendChild(list);
             if (cols.length > 8) {
               const more = document.createElement("div");
-              more.style.cssText = "color:var(--muted-foreground);font-size:10px;margin-top:4px;";
+              more.style.cssText =
+                "color:var(--muted-foreground);font-size:10px;margin-top:4px;";
               more.textContent = `+${cols.length - 8} more…`;
               el.appendChild(more);
             }
@@ -1031,7 +1277,7 @@ export const SqlEditor = React.memo(
             let lastKwType: "column" | "table" | null = null;
             for (const kw of COLUMN_KWS) {
               const re = new RegExp(`\\b${kw.replace(/\s+/, "\\s+")}\\b`, "g");
-              let m;
+              let m: RegExpExecArray | null;
               while ((m = re.exec(upperBefore)) !== null) {
                 if (m.index > lastKwPos) {
                   lastKwPos = m.index;
@@ -1041,7 +1287,7 @@ export const SqlEditor = React.memo(
             }
             for (const kw of TABLE_KWS) {
               const re = new RegExp(`\\b${kw.replace(/\s+/, "\\s+")}\\b`, "g");
-              let m;
+              let m: RegExpExecArray | null;
               while ((m = re.exec(upperBefore)) !== null) {
                 if (m.index > lastKwPos) {
                   lastKwPos = m.index;
@@ -1191,7 +1437,11 @@ export const SqlEditor = React.memo(
                 }
               }
               for (const cte of ctes) {
-                options.push({ label: cte.name, type: "constant", detail: "CTE" });
+                options.push({
+                  label: cte.name,
+                  type: "constant",
+                  detail: "CTE",
+                });
               }
             } else {
               // ── Fallback: suggest tables + columns from referenced tables ──
@@ -1207,7 +1457,11 @@ export const SqlEditor = React.memo(
                 }
               }
               for (const cte of ctes) {
-                options.push({ label: cte.name, type: "constant", detail: "CTE" });
+                options.push({
+                  label: cte.name,
+                  type: "constant",
+                  detail: "CTE",
+                });
               }
             }
             return { from: word.from, options };
@@ -1266,10 +1520,15 @@ export const SqlEditor = React.memo(
           const countEl = footer.querySelector(
             ".cm-completion-footer-count",
           ) as HTMLElement;
-          if (countEl)
-            countEl.textContent = `${selectedIdx || 1} / ${total}`;
+          if (countEl) countEl.textContent = `${selectedIdx || 1} / ${total}`;
         }),
         sqlLinter,
+        activeQueryHighlightField,
+        queryStatusGutterField,
+        gutter({
+          class: "cm-query-status-gutter",
+          markers: (view) => view.state.field(queryStatusGutterField),
+        }),
         fontTheme,
       ];
     }, [schema, flushChanges, snippets, connection, buildInfoPanel]);
@@ -1278,7 +1537,7 @@ export const SqlEditor = React.memo(
         className="overflow-scroll h-full"
         value={value}
         theme={theme === "light" ? editorThemeLight : editorThemeDark}
-        height="100%"
+        height={height || "100%"}
         onChange={handleEditorChange}
         onBlur={flushChanges}
         onCreateEditor={(view) => {
@@ -1287,6 +1546,8 @@ export const SqlEditor = React.memo(
           setTimeout(() => view.focus(), 10);
         }}
         extensions={extensions}
+        placeholder={placeholder}
+        readOnly={readOnly}
       />
     );
   },
@@ -1294,7 +1555,10 @@ export const SqlEditor = React.memo(
     return (
       prevProps.value === nextProps.value &&
       prevProps.activeTabId === nextProps.activeTabId &&
-      prevProps.connection === nextProps.connection
+      prevProps.connection === nextProps.connection &&
+      prevProps.placeholder === nextProps.placeholder &&
+      prevProps.readOnly === nextProps.readOnly &&
+      prevProps.height === nextProps.height
     );
   },
 );

@@ -99,7 +99,7 @@ const TableBodyContent = React.memo(
     const start = pageIndex * pageSize;
     const end = start + pageSize;
     const rows = sortedFilteredRows.slice(start, end);
-    console.log(rows, data)
+    console.log(rows, data);
     return (
       <TableBody>
         {rows?.length ? (
@@ -223,7 +223,6 @@ export const ResultsTable = React.memo(function ResultsTable({
     initialState: { pagination: { pageSize: 100 } },
   });
 
-
   const { getResizeHandlerProps } = useTableResize(table);
 
   const resizingColumnId = table.getState().columnSizingInfo.isResizingColumn;
@@ -232,8 +231,8 @@ export const ResultsTable = React.memo(function ResultsTable({
     : null;
   const leftOffset = resizingHeader
     ? resizingHeader.column.getStart() +
-    resizingHeader.column.getSize() +
-    (table.getState().columnSizingInfo.deltaOffset ?? 0)
+      resizingHeader.column.getSize() +
+      (table.getState().columnSizingInfo.deltaOffset ?? 0)
     : 0;
 
   React.useEffect(() => {
@@ -327,7 +326,6 @@ export const ResultsTable = React.memo(function ResultsTable({
           }
         }}
       >
-
         <Table
           className="border-collapse border-spacing-0 table-fixed"
           style={{ width: table.getCenterTotalSize() }}

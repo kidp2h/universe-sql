@@ -24,7 +24,7 @@ export function ImportConnectionsButton() {
       try {
         const content = event.target?.result as string;
         const data = JSON.parse(content);
-        
+
         if (!Array.isArray(data)) {
           throw new Error("Invalid format: Expected an array of connections.");
         }
@@ -39,36 +39,132 @@ export function ImportConnectionsButton() {
           }
 
           // Check if connection with same name already exists to avoid duplicates
-          const exists = connections.some(c => c.name.toLowerCase() === item.name.toLowerCase());
+          const exists = connections.some(
+            (c) => c.name.toLowerCase() === item.name.toLowerCase(),
+          );
           if (exists) {
             skippedCount++;
             return;
           }
 
+          const newConnectionId = crypto.randomUUID();
           const newConnection: Connection = {
             ...item,
-            id: crypto.randomUUID(), // Generate new ID
-            isLoading: false,
+            id: newConnectionId, // Generate new ID
+            isLoading: !!window.electron?.getFullMetadata,
             children: [],
           };
 
           addConnection(newConnection);
           importedCount++;
+
+          if (window.electron?.getFullMetadata) {
+            window.electron
+              .getFullMetadata(newConnection)
+              .then((res: any) => {
+                if (res.ok && res.metadata) {
+                  const schemaNodes = res.metadata.map((s: any) => ({
+                    id: `${newConnectionId}:schema:${s.name}`,
+                    name: s.name,
+                    tableCount: s.tableCount,
+                    children: s.tables.map((t: any) => ({
+                      id: `${newConnectionId}:schema:${s.name}:table:${t.name}`,
+                      name: t.name,
+                      size: t.size,
+                      children: [
+                        {
+                          id: `${newConnectionId}:schema:${s.name}:table:${t.name}:columns`,
+                          name: "Columns",
+                          count: t.columnCount,
+                          children: t.columns.map((col: any) => ({
+                            id: `${newConnectionId}:schema:${s.name}:table:${t.name}:column:${col.name}`,
+                            name: col.name,
+                            isPrimary: col.isPrimary,
+                            isForeign: col.isForeign,
+                            dataType: col.dataType,
+                            references: col.references,
+                            comment: col.comment || null,
+                          })),
+                        },
+                        {
+                          id: `${newConnectionId}:schema:${s.name}:table:${t.name}:indexes`,
+                          name: "Indexes",
+                          count: t.indexCount,
+                          children: t.indexes.map((idxName: any) => ({
+                            id: `${newConnectionId}:schema:${s.name}:table:${t.name}:index:${idxName}`,
+                            name: idxName,
+                          })),
+                        },
+                      ],
+                    })),
+                  }));
+
+                  useSidebarStore.getState().updateConnection({
+                    ...newConnection,
+                    isLoading: false,
+                    children:
+                      schemaNodes.length > 0
+                        ? schemaNodes
+                        : [
+                            {
+                              id: `${newConnectionId}:empty`,
+                              name: "No schemas found",
+                              disabled: true,
+                            },
+                          ],
+                  });
+                } else {
+                  useSidebarStore.getState().updateConnection({
+                    ...newConnection,
+                    isLoading: false,
+                    children: [
+                      {
+                        id: `${newConnectionId}:error`,
+                        name: res.message || "Failed to load",
+                        disabled: true,
+                        className: "text-destructive",
+                      },
+                    ],
+                  });
+                }
+              })
+              .catch((err) => {
+                console.error(
+                  `Failed to load metadata for connection "${newConnection.name}":`,
+                  err,
+                );
+                useSidebarStore.getState().updateConnection({
+                  ...newConnection,
+                  isLoading: false,
+                  children: [
+                    {
+                      id: `${newConnectionId}:error`,
+                      name: "Failed to load",
+                      disabled: true,
+                      className: "text-destructive",
+                    },
+                  ],
+                });
+              });
+          }
         });
 
         if (importedCount > 0) {
-          toast?.success(`Successfully imported ${importedCount} connection(s).`);
+          toast?.success(
+            `Successfully imported ${importedCount} connection(s).`,
+          );
         } else if (skippedCount > 0) {
-          toast?.error(`${skippedCount} connection(s) were skipped (duplicates or invalid).`);
+          toast?.error(
+            `${skippedCount} connection(s) were skipped (duplicates or invalid).`,
+          );
         } else {
           toast?.error("No valid connections found in file.");
         }
-
       } catch (err) {
         console.error("Failed to parse connections file:", err);
         toast?.error("Failed to parse JSON file.");
       }
-      
+
       // Reset input so the same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = "";

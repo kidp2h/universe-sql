@@ -9,19 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import {
   Clock,
   Loader2,
-  AlertCircle,
   Zap,
   Terminal,
-  X,
   ScanSearch,
   Copy,
   Check,
   AlertTriangle,
-  Trash2,
   Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { QueryResult } from "@/components/query/types";
 import { BsFiletypeJson } from "react-icons/bs";
 import { QueryResultsContextMenu } from "./query-results-context-menu";
 import { ResultsTable } from "@/components/query/results-table";
@@ -34,7 +30,6 @@ import { cn } from "@/lib/utils";
 import { useTabStore } from "@/stores/tab-store";
 import { useSidebarStore } from "@/stores/sidebar-store";
 import { useShallow } from "zustand/react/shallow";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   EMPTY_RESULT_TABS,
   useQueryResultsStore,
@@ -43,7 +38,11 @@ import {
 
 type QueryResultsPanelProps = {
   copyText: (text: string) => void | Promise<void>;
-  executeQuery?: (sql: string, skipConfirm?: boolean, bypassLimit?: boolean) => Promise<void>;
+  executeQuery?: (
+    sql: string,
+    skipConfirm?: boolean,
+    bypassLimit?: boolean,
+  ) => Promise<void>;
   onCancel?: () => void;
   onExplainResultTab?: (
     queryTabId: string,
@@ -52,7 +51,13 @@ type QueryResultsPanelProps = {
   ) => void;
 };
 
-const TruncatedCell = ({ value }: { value: string }) => {
+const TruncatedCell = ({
+  value,
+  className,
+}: {
+  value: string;
+  className?: string;
+}) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const textRef = React.useRef<HTMLSpanElement>(null);
   const [remainingCount, setRemainingCount] = React.useState(0);
@@ -92,7 +97,10 @@ const TruncatedCell = ({ value }: { value: string }) => {
     >
       <span
         ref={textRef}
-        className="text-green-700 dark:text-green-400 text-ellipsis overflow-hidden whitespace-nowrap flex-1"
+        className={cn(
+          "text-ellipsis overflow-hidden whitespace-nowrap flex-1",
+          className || "text-green-700 dark:text-green-400",
+        )}
       >
         {value}
       </span>
@@ -429,15 +437,17 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
           return <span className="text-muted-foreground italic">null</span>;
         if (typeof value === "object")
           return (
-            <span className="text-cyan-600 dark:text-cyan-400 font-mono text-sm">
-              {JSON.stringify(value)}
-            </span>
+            <TruncatedCell
+              value={JSON.stringify(value)}
+              className="text-cyan-600 dark:text-cyan-400 font-mono text-sm"
+            />
           );
         if (typeof value === "number")
           return (
-            <span className="text-blue-600 dark:text-blue-400">
-              {String(value)}
-            </span>
+            <TruncatedCell
+              value={String(value)}
+              className="text-blue-600 dark:text-blue-400"
+            />
           );
         return <TruncatedCell value={String(value)} />;
       },
@@ -706,7 +716,11 @@ export const QueryTabResultsContainer = React.memo(
     queryTabId: string;
     isActive: boolean;
     copyText: (text: string) => void | Promise<void>;
-    executeQuery?: (sql: string, skipConfirm?: boolean, bypassLimit?: boolean) => Promise<void>;
+    executeQuery?: (
+      sql: string,
+      skipConfirm?: boolean,
+      bypassLimit?: boolean,
+    ) => Promise<void>;
     onCancel?: () => void;
     onExplainResultTab?: (
       queryTabId: string,
@@ -744,15 +758,15 @@ export const QueryTabResultsContainer = React.memo(
       }
     }, [tabResults, executeQuery]);
 
-    const effectiveActiveResultTabId = activeResultTabId || tabResults[0]?.id;
+    const _effectiveActiveResultTabId = activeResultTabId || tabResults[0]?.id;
 
     const setActiveResultTabId = useQueryResultsStore(
       (state) => state.setActiveResultTabId,
     );
-    const onRemoveResultTab = useQueryResultsStore(
+    const _onRemoveResultTab = useQueryResultsStore(
       (state) => state.removeResult,
     );
-    const clearResults = useQueryResultsStore((state) => state.clearResults);
+    const _clearResults = useQueryResultsStore((state) => state.clearResults);
     const updateResult = useQueryResultsStore((state) => state.updateResult);
 
     const [editingTabId, setEditingTabId] = React.useState<string | null>(null);
@@ -766,7 +780,7 @@ export const QueryTabResultsContainer = React.memo(
       }
     }, [editingTabId]);
 
-    const handleStartRename = React.useCallback(
+    const _handleStartRename = React.useCallback(
       (e: React.MouseEvent, tabId: string, currentName: string) => {
         e.stopPropagation();
         setEditingTabId(tabId);
@@ -775,7 +789,7 @@ export const QueryTabResultsContainer = React.memo(
       [],
     );
 
-    const handleSaveRename = React.useCallback(
+    const _handleSaveRename = React.useCallback(
       (resultTabId: string) => {
         const trimmed = editingName.trim();
         if (trimmed) {
@@ -792,7 +806,7 @@ export const QueryTabResultsContainer = React.memo(
       }
     }, [activeResultTabId, tabResults, queryTabId, setActiveResultTabId]);
 
-    const getSqlPreview = React.useCallback(
+    const _getSqlPreview = React.useCallback(
       (sql: string) => {
         const cleaned = sql.trim().replace(/\s+/g, " ");
         if (cleaned.length > 22) {
