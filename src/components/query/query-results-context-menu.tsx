@@ -42,7 +42,7 @@ export function QueryResultsContextMenu({
           <Copy className="mr-2 size-4" />
           <span>{t("copyLabel")}</span>
           <ContextMenuShortcut>
-            <Shortcut shortcut="⌘C" />
+            <Shortcut shortcut="⌘ + C" />
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem onClick={onCopyInStatement}>

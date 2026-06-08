@@ -54,9 +54,11 @@ type QueryResultsPanelProps = {
 const TruncatedCell = ({
   value,
   className,
+  title,
 }: {
   value: string;
   className?: string;
+  title?: string;
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const textRef = React.useRef<HTMLSpanElement>(null);
@@ -97,6 +99,7 @@ const TruncatedCell = ({
     >
       <span
         ref={textRef}
+        title={title}
         className={cn(
           "text-ellipsis overflow-hidden whitespace-nowrap flex-1",
           className || "text-green-700 dark:text-green-400",
@@ -431,25 +434,63 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
     const dataColumns = queryResult.columns.map((col) => ({
       accessorKey: col,
       header: col,
+      // Estimate width based on characters + padding/icons to prevent truncation
+      // Padding (32px) + Icons & Gaps (~70px) = ~102px. Add some buffer.
+      size: Math.max(col.length * 9 + 115, 140),
       cell: (info: any) => {
         const value = info.getValue();
         if (value === null || value === undefined)
           return <span className="text-muted-foreground italic">null</span>;
+        if (value === "")
+          return (
+            <span className="text-muted-foreground/50 italic select-none">
+              &lt;empty&gt;
+            </span>
+          );
         if (typeof value === "object")
           return (
             <TruncatedCell
               value={JSON.stringify(value)}
-              className="text-cyan-600 dark:text-cyan-400 font-mono text-sm"
+              className="text-cyan-600 dark:text-cyan-400 group-data-[selected=true]:text-cyan-900 dark:group-data-[selected=true]:text-cyan-50 font-mono text-sm"
             />
           );
         if (typeof value === "number")
           return (
             <TruncatedCell
               value={String(value)}
-              className="text-blue-600 dark:text-blue-400"
+              className="text-blue-600 dark:text-blue-400 group-data-[selected=true]:text-blue-900 dark:group-data-[selected=true]:text-blue-50 text-right font-mono"
             />
           );
-        return <TruncatedCell value={String(value)} />;
+        if (typeof value === "boolean")
+          return (
+            <TruncatedCell
+              value={String(value)}
+              className="text-purple-600 dark:text-purple-400 group-data-[selected=true]:text-purple-900 dark:group-data-[selected=true]:text-purple-50 font-mono"
+            />
+          );
+
+        if (typeof value === "string") {
+          // Check for ISO Date string (e.g. 2026-06-01T14:19:13.129Z)
+          const isoDateRegex =
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
+          if (isoDateRegex.test(value)) {
+            const formattedDate = value.replace("T", " ").replace("Z", "");
+            return (
+              <TruncatedCell
+                value={formattedDate}
+                title={value}
+                className="text-orange-600 dark:text-orange-400 group-data-[selected=true]:text-orange-950 dark:group-data-[selected=true]:text-orange-50 font-mono"
+              />
+            );
+          }
+        }
+
+        return (
+          <TruncatedCell
+            value={String(value)}
+            className="text-emerald-700 dark:text-emerald-400 group-data-[selected=true]:text-emerald-950 dark:group-data-[selected=true]:text-emerald-50"
+          />
+        );
       },
     }));
 
@@ -707,14 +748,12 @@ const QueryResultTabContent = React.memo(function QueryResultTabContent({
 export const QueryTabResultsContainer = React.memo(
   function QueryTabResultsContainer({
     queryTabId,
-    isActive,
     copyText,
     executeQuery,
     onCancel,
     onExplainResultTab,
   }: {
     queryTabId: string;
-    isActive: boolean;
     copyText: (text: string) => void | Promise<void>;
     executeQuery?: (
       sql: string,

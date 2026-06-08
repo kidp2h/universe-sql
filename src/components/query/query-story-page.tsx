@@ -31,7 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useTheme } from "@/hooks/use-theme";
 import { SqlEditor } from "@/components/query/query-codemirror-editor";
 import {
   ResizableHandle,
@@ -241,7 +240,6 @@ const nodeTypes = {
 
 export function VisualQueryStoryPage() {
   const { t } = useTranslation();
-  const { theme } = useTheme();
   const { activeConnection, connections } = useConnection();
   const dummySelectedTextRef = React.useRef<any>(null);
 

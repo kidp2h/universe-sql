@@ -673,33 +673,25 @@ export const fontTheme = EditorView.theme({
   },
   // active query block highlight styles
   ".cm-active-query-first": {
-    boxShadow:
-      "inset 0 1px 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset 1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset -1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent) !important",
     backgroundColor:
-      "color-mix(in srgb, var(--brand) 4%, transparent) !important",
-    borderTopLeftRadius: "6px",
-    borderTopRightRadius: "6px",
+      "color-mix(in srgb, var(--brand) 8%, transparent) !important",
+    borderTopLeftRadius: "4px",
+    borderTopRightRadius: "4px",
   },
   ".cm-active-query-middle": {
-    boxShadow:
-      "inset 1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset -1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent) !important",
     backgroundColor:
-      "color-mix(in srgb, var(--brand) 4%, transparent) !important",
+      "color-mix(in srgb, var(--brand) 8%, transparent) !important",
   },
   ".cm-active-query-last": {
-    boxShadow:
-      "inset 0 -1px 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset 1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent), inset -1px 0 0 0 color-mix(in srgb, var(--brand) 30%, transparent) !important",
     backgroundColor:
-      "color-mix(in srgb, var(--brand) 4%, transparent) !important",
-    borderBottomLeftRadius: "6px",
-    borderBottomRightRadius: "6px",
+      "color-mix(in srgb, var(--brand) 8%, transparent) !important",
+    borderBottomLeftRadius: "4px",
+    borderBottomRightRadius: "4px",
   },
   ".cm-active-query-single": {
-    boxShadow:
-      "inset 0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent) !important",
     backgroundColor:
-      "color-mix(in srgb, var(--brand) 4%, transparent) !important",
-    borderRadius: "6px",
+      "color-mix(in srgb, var(--brand) 8%, transparent) !important",
+    borderRadius: "4px",
   },
   // query status gutter style
   ".cm-query-status-gutter": {

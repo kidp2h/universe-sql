@@ -52,8 +52,8 @@ export function ExportConnectionsModal() {
     const exportData = connections
       .filter((c) => selectedIds.has(c.id))
       .map((c) => {
-        // Exclude children, isLoading, and dynamically fetched metadata
-        const { children, isLoading, ...safeConnection } = c as any;
+        // Exclude children, isLoading, queryPaths and dynamically fetched metadata
+        const { ...safeConnection } = c as any;
         return safeConnection;
       });
 

@@ -31,7 +31,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useTheme } from "@/hooks/use-theme";
 import { useQueryHistoryStore } from "@/stores/query-history-store";
 import { useTranslation } from "react-i18next";
 import {
@@ -117,7 +116,6 @@ export function QueryDiffPage() {
     fetchDbs();
   }, [selectedConnId, currentConn]);
 
-  const { theme } = useTheme();
   const history = useQueryHistoryStore((state) => state.history);
   const [popoverAOpen, setPopoverAOpen] = React.useState(false);
   const [popoverBOpen, setPopoverBOpen] = React.useState(false);

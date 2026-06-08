@@ -26,7 +26,7 @@ export const MemoizedTableRow = React.memo(
     return (
       <TableRow
         data-state={row.getIsSelected() && "selected"}
-        className="hover:bg-muted/50"
+        className="hover:bg-muted/50 even:bg-muted/20"
       >
         {row.getVisibleCells().map((cell, cIndex) => {
           const isSelectCol = cell.column.id === "select";
@@ -68,7 +68,7 @@ export const MemoizedTableRow = React.memo(
               data-type={isSelectCol ? undefined : typeof cell.getValue()}
               data-selected={isSelected ? "true" : undefined}
               data-raw-value={rawValueString}
-              className={`data-cell select-none whitespace-nowrap font-mono text-sm max-w-[400px] border-r bg-background data-[selected=true]:bg-brand/20 dark:data-[selected=true]:bg-brand/30 relative group overflow-hidden ${isSelectCol ? "w-[40px] min-w-[40px] max-w-[40px] p-0" : "px-4 py-1.5 cursor-cell"}`}
+              className={`data-cell select-none whitespace-nowrap font-mono text-sm max-w-[400px] border-r data-[selected=true]:bg-brand/20 dark:data-[selected=true]:bg-brand/30 relative group overflow-hidden ${isSelectCol ? "w-[40px] min-w-[40px] max-w-[40px] p-0" : "px-4 py-1.5 cursor-cell"}`}
               onContextMenu={(e) => {
                 if (isSelectCol) e.stopPropagation();
               }}

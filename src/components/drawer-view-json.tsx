@@ -97,7 +97,7 @@ export function DrawerViewJson({
         <div className="flex-1 min-h-0 p-6 bg-muted/5 overflow-auto select-text font-mono text-sm leading-relaxed">
           <pre
             className="w-full h-full bg-transparent font-mono text-sm text-foreground overflow-auto select-text whitespace-pre-wrap break-all"
-            // biome-ignore lint/security/noDangerouslySetInnerHTML: JSON highlighting is safe as raw strings are escaped
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON highlighting is safe as raw strings are escaped
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         </div>

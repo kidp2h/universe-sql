@@ -336,7 +336,7 @@ export const ResultsTable = React.memo(function ResultsTable({
           >
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header, index) => (
+                {headerGroup.headers.map((header, _index) => (
                   <TableHead
                     key={header.id}
                     style={{ width: header.getSize() }}
@@ -350,19 +350,8 @@ export const ResultsTable = React.memo(function ResultsTable({
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5  transition-opacity text-muted-foreground hover:text-foreground shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              header.column.toggleVisibility(false);
-                            }}
-                          >
-                            <EyeOff className="size-3" />
-                          </Button>
+                      <div className="flex items-center w-full group/header">
+                        <div className="flex items-center min-w-0 shrink">
                           <span className="truncate">
                             {flexRender(
                               header.column.columnDef.header,
@@ -370,7 +359,14 @@ export const ResultsTable = React.memo(function ResultsTable({
                             )}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1 transition-opacity">
+                        <div
+                          className={cn(
+                            "flex items-center gap-0.5 ml-1 opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0",
+                            (header.column.getFilterValue() ||
+                              header.column.getIsSorted()) &&
+                              "opacity-100",
+                          )}
+                        >
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
@@ -387,16 +383,14 @@ export const ResultsTable = React.memo(function ResultsTable({
                               filterValue={
                                 (header.column.getFilterValue() as string[]) ??
                                 []
-                              } // ✅
+                              }
                             />
                           </Popover>
-                        </div>
-                        {header.column.getCanSort() && (
-                          <div className="ml-1 flex-shrink-0">
+                          {header.column.getCanSort() && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              className={`h-5 w-5 hover:text-foreground transition-opacity ${header.column.getIsSorted() ? "opacity-100 text-foreground" : "text-muted-foreground/50"}`}
+                              className={`h-5 w-5 hover:text-foreground transition-opacity shrink-0 ${header.column.getIsSorted() ? "opacity-100 text-foreground" : "text-muted-foreground/50"}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const handler =
@@ -412,22 +406,32 @@ export const ResultsTable = React.memo(function ResultsTable({
                                 <ArrowUpDown className="size-3.5" />
                               )}
                             </Button>
-                          </div>
-                        )}
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              header.column.toggleVisibility(false);
+                            }}
+                            title="Hide column"
+                          >
+                            <EyeOff className="size-3" />
+                          </Button>
+                        </div>
                       </div>
                     )}
-                    {header.column.getCanResize() &&
-                      index !== headerGroup.headers.length - 1 &&
-                      header.id !== "select" && (
-                        <div
-                          onDoubleClick={() => header.column.resetSize()}
-                          {...getResizeHandlerProps(header.column.id)}
-                          className={cn(
-                            "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-brand bg-border/40 group-hover:bg-muted-foreground/30 z-30 transition-colors",
-                            header.column.getIsResizing() && "bg-brand w-1.5",
-                          )}
-                        />
-                      )}
+                    {header.column.getCanResize() && header.id !== "select" && (
+                      <div
+                        onDoubleClick={() => header.column.resetSize()}
+                        {...getResizeHandlerProps(header.column.id)}
+                        className={cn(
+                          "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-brand bg-border/40 group-hover:bg-muted-foreground/30 z-30 transition-colors",
+                          header.column.getIsResizing() && "bg-brand w-1.5",
+                        )}
+                      />
+                    )}
                   </TableHead>
                 ))}
               </TableRow>

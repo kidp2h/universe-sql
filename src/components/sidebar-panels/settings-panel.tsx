@@ -44,6 +44,7 @@ const FlagIcon = ({ lang }: { lang: string }) => {
           viewBox="0 0 190 100"
           className="size-4 rounded-xs shadow-xs border border-border/20 shrink-0"
         >
+          <title>English</title>
           <rect width="190" height="100" fill="#B22234" />
           <path
             d="M0,7.7H190M0,23H190M0,38.5H190M0,53.8H190M0,69.2H190M0,84.6H190"
@@ -114,6 +115,7 @@ const FlagIcon = ({ lang }: { lang: string }) => {
           viewBox="0 0 3 2"
           className="size-4 rounded-xs shadow-xs border border-border/20 shrink-0"
         >
+          <title>Tiếng Việt</title>
           <rect width="3" height="2" fill="#da251d" />
           <polygon
             points="1.5,0.6 1.62,0.97 2,0.97 1.69,1.2 1.81,1.57 1.5,1.34 1.19,1.57 1.31,1.2 1,0.97 1.38,0.97"
@@ -127,6 +129,7 @@ const FlagIcon = ({ lang }: { lang: string }) => {
           viewBox="0 0 30 20"
           className="size-4 rounded-xs shadow-xs border border-border/20 shrink-0"
         >
+          <title>中文</title>
           <rect width="30" height="20" fill="#de2910" />
           <polygon
             points="5,2 5.6,3.8 7.5,3.8 6,5 6.5,6.8 5,5.6 3.5,6.8 4,5 2.5,3.8 4.4,3.8"
@@ -145,6 +148,7 @@ const FlagIcon = ({ lang }: { lang: string }) => {
           viewBox="0 0 3 2"
           className="size-4 rounded-xs shadow-xs border border-border/20 shrink-0"
         >
+          <title>日本語</title>
           <rect width="3" height="2" fill="#fff" />
           <circle cx="1.5" cy="1" r="0.6" fill="#bc002d" />
         </svg>
@@ -155,6 +159,7 @@ const FlagIcon = ({ lang }: { lang: string }) => {
           viewBox="0 0 3 2"
           className="size-4 rounded-xs shadow-xs border border-border/20 shrink-0"
         >
+          <title>한국어</title>
           <rect width="3" height="2" fill="#fff" />
           <path
             d="M1.5,0.5 A0.5,0.5 0 0,0 1.5,1.5 A0.25,0.25 0 0,0 1.5,1 A0.25,0.25 0 0,1 1.5,0.5"
@@ -212,6 +217,7 @@ const FlagIcon = ({ lang }: { lang: string }) => {
           viewBox="0 0 3 2"
           className="size-4 rounded-xs shadow-xs border border-border/20 shrink-0"
         >
+          <title>Русский</title>
           <rect width="3" height="0.67" fill="#fff" />
           <rect y="0.67" width="3" height="0.67" fill="#0039a6" />
           <rect y="1.34" width="3" height="0.67" fill="#d52b1e" />
@@ -223,6 +229,7 @@ const FlagIcon = ({ lang }: { lang: string }) => {
           viewBox="0 0 3 2"
           className="size-4 rounded-xs shadow-xs border border-border/20 shrink-0"
         >
+          <title>Español</title>
           <rect width="3" height="0.5" fill="#c60b1e" />
           <rect y="0.5" width="3" height="1" fill="#fbe122" />
           <rect y="1.5" width="3" height="0.5" fill="#c60b1e" />

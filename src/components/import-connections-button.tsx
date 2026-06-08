@@ -47,9 +47,12 @@ export function ImportConnectionsButton() {
             return;
           }
 
+          // Remove queryPaths if any
+          const { ...cleanItem } = item;
+
           const newConnectionId = crypto.randomUUID();
           const newConnection: Connection = {
-            ...item,
+            ...cleanItem,
             id: newConnectionId, // Generate new ID
             isLoading: !!window.electron?.getFullMetadata,
             children: [],
