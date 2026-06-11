@@ -132,7 +132,8 @@
   --editor-matching-bracket: oklch(0.9 0.02 240);
 
   /* Completion Menu - Vibrant Theme (Light Mode) */
-  --completion-bg: rgba(255, 255, 255, 0.82);
+  --completion-bg: rgba(255, 255, 255, 0.92);
+  --completion-blur: blur(12px);
   --completion-border: color-mix(in srgb, var(--brand) 18%, transparent);
   --completion-shadow:
     0 10px 30px -10px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0
@@ -240,8 +241,9 @@
   --editor-matching-bracket: #388bfd40;
 
   /* Completion Menu - Vibrant Theme (Dark Mode) */
-  --completion-bg: rgba(20, 20, 25, 0.85);
+  --completion-bg: rgba(20, 20, 25, 0.94);
   /* Deep translucent slate */
+  --completion-blur: blur(16px);
   --completion-border: color-mix(in srgb, var(--brand) 30%, transparent);
   --completion-shadow:
     0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 1px 5px rgba(0, 0, 0, 0.3), 0 0 0

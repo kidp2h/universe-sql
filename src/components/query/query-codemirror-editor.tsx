@@ -520,6 +520,8 @@ export const fontTheme = EditorView.theme({
     fontFamily:
       'var(--editor-font-family, "CascadiaCode Nerd Font", "Cascadia Code", monospace) !important',
     backgroundColor: "var(--completion-bg) !important",
+    backdropFilter: "var(--completion-blur) !important",
+    webkitBackdropFilter: "var(--completion-blur) !important",
     border: "1px solid var(--completion-border) !important",
     borderRadius: "var(--radius) !important",
     boxShadow: "var(--completion-shadow) !important",
@@ -1361,23 +1363,32 @@ export const SqlEditor = React.memo(
                   referencedTables.add(lowerTbl);
                 }
               }
+              // Group columns by lowercase name to prevent duplicates across tables/CTEs
+              const columnGroups = new Map<
+                string,
+                {
+                  originalName: string;
+                  sources: Array<{ type: "cte" | "table"; sourceName: string }>;
+                }
+              >();
+
               // CTE columns
               for (const cteName of referencedCtes) {
                 const cte = ctes.find((c) => c.name === cteName);
                 if (cte) {
                   for (const col of cte.columns) {
-                    const key = `cte:${cteName}:${col}`;
-                    if (!seen.has(key)) {
-                      seen.add(key);
-                      const _cteName = cteName;
-                      const _col = col;
-                      options.push({
-                        label: col,
-                        type: "property",
-                        detail: `column of CTE ${cteName}`,
-                        boost: 10,
-                        info: () => buildInfoPanel(_col, _cteName, "column"),
-                      });
+                    const lowerCol = col.toLowerCase();
+                    let group = columnGroups.get(lowerCol);
+                    if (!group) {
+                      group = { originalName: col, sources: [] };
+                      columnGroups.set(lowerCol, group);
+                    }
+                    if (
+                      !group.sources.some(
+                        (s) => s.type === "cte" && s.sourceName === cteName,
+                      )
+                    ) {
+                      group.sources.push({ type: "cte", sourceName: cteName });
                     }
                   }
                 }
@@ -1386,20 +1397,77 @@ export const SqlEditor = React.memo(
               for (const [tableName, cols] of Object.entries(schema || {})) {
                 if (referencedTables.has(tableName.toLowerCase())) {
                   for (const col of cols) {
-                    const key = `tbl:${tableName.toLowerCase()}:${col}`;
-                    if (!seen.has(key)) {
-                      seen.add(key);
-                      const _tblName = tableName;
-                      const _col = col;
-                      options.push({
-                        label: col,
-                        type: "property",
-                        detail: `column of ${tableName}`,
-                        boost: 10,
-                        info: () => buildInfoPanel(_col, _tblName, "column"),
+                    const lowerCol = col.toLowerCase();
+                    let group = columnGroups.get(lowerCol);
+                    if (!group) {
+                      group = { originalName: col, sources: [] };
+                      columnGroups.set(lowerCol, group);
+                    }
+                    if (
+                      !group.sources.some(
+                        (s) =>
+                          s.type === "table" &&
+                          s.sourceName.toLowerCase() ===
+                            tableName.toLowerCase(),
+                      )
+                    ) {
+                      group.sources.push({
+                        type: "table",
+                        sourceName: tableName,
                       });
                     }
                   }
+                }
+              }
+
+              // Generate autocomplete options from grouped columns
+              for (const group of columnGroups.values()) {
+                const col = group.originalName;
+                if (group.sources.length === 1) {
+                  const src = group.sources[0];
+                  const _sourceName = src.sourceName;
+                  const _col = col;
+                  options.push({
+                    label: col,
+                    type: "property",
+                    detail:
+                      src.type === "cte"
+                        ? `column of CTE ${_sourceName}`
+                        : `column of ${_sourceName}`,
+                    boost: 10,
+                    info: () => buildInfoPanel(_col, _sourceName, "column"),
+                  });
+                } else if (group.sources.length > 1) {
+                  const details = group.sources
+                    .map((s) =>
+                      s.type === "cte" ? `CTE ${s.sourceName}` : s.sourceName,
+                    )
+                    .join(", ");
+                  const _col = col;
+                  const _sources = [...group.sources];
+                  options.push({
+                    label: col,
+                    type: "property",
+                    detail: `column of ${details}`,
+                    boost: 10,
+                    info: () => {
+                      const container = document.createElement("div");
+                      container.style.cssText =
+                        "display:flex;flex-direction:column;gap:12px;";
+                      _sources.forEach((src, idx) => {
+                        if (idx > 0) {
+                          const hr = document.createElement("hr");
+                          hr.style.cssText =
+                            "border:none;border-top:1px solid var(--border, #ccc);margin:6px 0;";
+                          container.appendChild(hr);
+                        }
+                        container.appendChild(
+                          buildInfoPanel(_col, src.sourceName, "column"),
+                        );
+                      });
+                      return container;
+                    },
+                  });
                 }
               }
               // Also suggest table/alias names themselves (for t.col disambiguation)

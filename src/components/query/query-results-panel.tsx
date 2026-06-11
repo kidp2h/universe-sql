@@ -1028,7 +1028,6 @@ export const QueryResultsPanel = React.memo(function QueryResultsPanel({
           >
             <QueryTabResultsContainer
               queryTabId={qTabId}
-              isActive={isActive}
               copyText={copyText}
               executeQuery={executeQuery}
               onCancel={isActive ? onCancel : undefined}
